@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write       # 必须：允许写入代码
-      workflows: write      # 必须：允许修改工作流文件
       actions: write        # 补充：避免Actions相关权限遗漏
     steps:
       - name: Checkout
