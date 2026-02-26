@@ -1,0 +1,42 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 北京12点 UTC时间4点执行一次
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许写入代码，确保GITHUB_TOKEN有推送权限
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/Anionex/banana-slides.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Merge upstream/master into master
+        run: |
+          git checkout master
+          # git merge upstream/master --allow-unrelated-histories || true
+          git merge upstream/master --allow-unrelated-histories -X theirs || true
+          git add .
+          git commit -m "auto-resolve conflict using upstream (theirs)" || true
+          
+      - name: Push changes
+        run: |
+          git push origin master --force
+        env:
+          # 需要有 repo 权限的 PAT，可存在项目的 Secrets 中，如：ACTIONS_DEPLOY_KEY
+          # GITHUB_TOKEN 也可用，但可能有权限限制
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
