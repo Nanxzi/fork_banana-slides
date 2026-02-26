@@ -303,7 +303,10 @@ def _load_settings_to_config(app):
                 logging.warning("Failed to parse lazyllm_api_keys from settings")
 
     except Exception as e:
-        logging.warning(f"Could not load settings from database: {e}")
+        if "no such table" in str(e):
+            logging.debug(f"Settings table not yet created (expected on first boot): {e}")
+        else:
+            logging.warning(f"Could not load settings from database: {e}")
 
 
 # Create app instance
