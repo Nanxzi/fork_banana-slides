@@ -38,7 +38,7 @@ jobs:
           
       - name: Push changes with explicit token
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.REPO_TOKEN }}
           REPO_URL: https://github.com/WuXiangM/fork_banana-slides.git
         run: |
           # 重新设置origin remote，显式带上token（核心修复）
