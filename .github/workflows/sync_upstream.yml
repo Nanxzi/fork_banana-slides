@@ -9,12 +9,14 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 允许写入代码
+      contents: write       # 允许写入代码
+      pull-requests: read   # 可选，避免潜在权限问题
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 新增：拉取完整历史，避免合并时的历史缺失问题
+          fetch-depth: 0    # 拉取完整历史，避免合并报错
+          token: ${{ secrets.GITHUB_TOKEN }}  # 显式指定默认token
 
       - name: Set up Git
         run: |
@@ -35,8 +37,6 @@ jobs:
           git commit -m "auto-resolve conflict using upstream (theirs)" || true
           
       - name: Push changes
-        run: |
-          # 优先移除 --force，仅在必要时使用（建议尽量避免强制推送）
-          git push origin main
+        run: git push origin main
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用默认token（核心修改）
