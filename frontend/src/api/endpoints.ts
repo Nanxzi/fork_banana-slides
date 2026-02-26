@@ -2,6 +2,18 @@ import { apiClient } from './client';
 import type { Project, Task, ApiResponse, CreateProjectRequest, Page } from '@/types';
 import type { Settings } from '../types/index';
 
+// ===== 访问口令 API =====
+
+export const checkAccessCode = async (): Promise<ApiResponse<{ enabled: boolean }>> => {
+  const response = await apiClient.get<ApiResponse<{ enabled: boolean }>>('/api/access-code/check');
+  return response.data;
+};
+
+export const verifyAccessCode = async (code: string): Promise<ApiResponse<{ valid: boolean }>> => {
+  const response = await apiClient.post<ApiResponse<{ valid: boolean }>>('/api/access-code/verify', { code });
+  return response.data;
+};
+
 // ===== 项目相关 API =====
 
 /**
@@ -22,6 +34,7 @@ export const createProject = async (data: CreateProjectRequest): Promise<ApiResp
     outline_text: data.outline_text,
     description_text: data.description_text,
     template_style: data.template_style,
+    image_aspect_ratio: data.image_aspect_ratio,
   });
   return response.data;
 };
@@ -161,6 +174,23 @@ export const generatePageDescription = async (
   const response = await apiClient.post<ApiResponse>(
     `/api/projects/${projectId}/pages/${pageId}/generate/description`,
     { force_regenerate: forceRegenerate , language: lang}
+  );
+  return response.data;
+};
+
+/**
+ * 重新生成 PPT 翻新项目的单页（重新解析原 PDF 并提取内容）
+ */
+export const regenerateRenovationPage = async (
+  projectId: string,
+  pageId: string,
+  keepLayout: boolean = false,
+  language?: OutputLanguage
+): Promise<ApiResponse> => {
+  const lang = language || await getStoredOutputLanguage();
+  const response = await apiClient.post<ApiResponse>(
+    `/api/projects/${projectId}/pages/${pageId}/regenerate-renovation`,
+    { keep_layout: keepLayout, language: lang }
   );
   return response.data;
 };
@@ -450,6 +480,20 @@ export const exportPDF = async (
 };
 
 /**
+ * 导出为图片（单张直接下载，多张打包ZIP）
+ */
+export const exportImages = async (
+  projectId: string,
+  pageIds?: string[]
+): Promise<ApiResponse<{ download_url: string; download_url_absolute?: string }>> => {
+  const url = `/api/projects/${projectId}/export/images${buildPageIdsQuery(pageIds)}`;
+  const response = await apiClient.get<
+    ApiResponse<{ download_url: string; download_url_absolute?: string }>
+  >(url);
+  return response.data;
+};
+
+/**
  * 导出为可编辑PPTX（异步任务）
  * @param projectId 项目ID
  * @param filename 可选的文件名
@@ -554,8 +598,9 @@ export const listMaterials = async (
  */
 export const uploadMaterial = async (
   file: File,
-  projectId?: string | null
-): Promise<ApiResponse<Material>> => {
+  projectId?: string | null,
+  generateCaption?: boolean
+): Promise<ApiResponse<Material & { caption?: string }>> => {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -568,7 +613,11 @@ export const uploadMaterial = async (
     url = `/api/projects/${projectId}/materials/upload`;
   }
 
-  const response = await apiClient.post<ApiResponse<Material>>(url, formData);
+  if (generateCaption) {
+    url += (url.includes('?') ? '&' : '?') + 'generate_caption=true';
+  }
+
+  const response = await apiClient.post<ApiResponse<Material & { caption?: string }>>(url, formData);
   return response.data;
 };
 
@@ -578,6 +627,31 @@ export const uploadMaterial = async (
 export const deleteMaterial = async (materialId: string): Promise<ApiResponse<{ id: string }>> => {
   const response = await apiClient.delete<ApiResponse<{ id: string }>>(`/api/materials/${materialId}`);
   return response.data;
+};
+
+/**
+ * Download selected materials bundled as a zip archive.
+ */
+export const downloadMaterialsZip = async (
+  materialIds: string[]
+): Promise<ApiResponse<{ download_url: string }>> => {
+  const { data: blob } = await apiClient.post<Blob>(
+    '/api/materials/download',
+    { material_ids: materialIds },
+    { responseType: 'blob' },
+  );
+
+  const href = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement('a'), {
+    href,
+    download: 'materials.zip',
+  });
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(href);
+
+  return { success: true, data: { download_url: '' } };
 };
 
 /**
@@ -818,6 +892,10 @@ export const updateSettings = async (
     api_key?: string;
     mineru_token?: string;
     baidu_ocr_api_key?: string;
+    text_api_key?: string;
+    image_api_key?: string;
+    image_caption_api_key?: string;
+    lazyllm_api_keys?: Record<string, string>;
   }
 ): Promise<ApiResponse<Settings>> => {
   const response = await apiClient.put<ApiResponse<Settings>>('/api/settings', data);
@@ -833,49 +911,155 @@ export const resetSettings = async (): Promise<ApiResponse<Settings>> => {
 };
 
 /**
- * 测试百度 OCR 服务
+ * 验证 API key 是否可用
  */
-export const testBaiduOcr = async (): Promise<ApiResponse<{ recognized_text: string }>> => {
-  const response = await apiClient.post<ApiResponse<{ recognized_text: string }>>('/api/settings/tests/baidu-ocr');
+export const verifyApiKey = async (): Promise<ApiResponse<{ available: boolean; message: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ available: boolean; message: string }>>('/api/settings/verify');
   return response.data;
 };
 
 /**
- * 测试文本生成模型
+ * 可选的测试设置类型
  */
-export const testTextModel = async (): Promise<ApiResponse<{ reply: string }>> => {
-  const response = await apiClient.post<ApiResponse<{ reply: string }>>('/api/settings/tests/text-model');
+export interface TestSettingsOverride {
+  api_key?: string;
+  api_base_url?: string;
+  text_model?: string;
+  image_model?: string;
+  image_caption_model?: string;
+  image_caption_model_source?: string;
+  mineru_api_base?: string;
+  mineru_token?: string;
+  baidu_ocr_api_key?: string;
+  ai_provider_format?: 'openai' | 'gemini' | 'lazyllm';
+  image_resolution?: string;
+  enable_text_reasoning?: boolean;
+  text_thinking_budget?: number;
+  enable_image_reasoning?: boolean;
+  image_thinking_budget?: number;
+}
+
+/**
+ * 测试百度 OCR 服务（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
+ */
+export const testBaiduOcr = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/baidu-ocr', settings || {});
   return response.data;
 };
 
 /**
- * 测试图片识别模型
+ * 测试文本生成模型（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
  */
-export const testCaptionModel = async (): Promise<ApiResponse<{ caption: string }>> => {
-  const response = await apiClient.post<ApiResponse<{ caption: string }>>('/api/settings/tests/caption-model');
+export const testTextModel = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/text-model', settings || {});
   return response.data;
 };
 
 /**
- * 测试百度图像修复
+ * 测试图片识别模型（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
  */
-export const testBaiduInpaint = async (): Promise<ApiResponse<{ image_size: [number, number] }>> => {
-  const response = await apiClient.post<ApiResponse<{ image_size: [number, number] }>>('/api/settings/tests/baidu-inpaint');
+export const testCaptionModel = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/caption-model', settings || {});
   return response.data;
 };
 
 /**
- * 测试图像生成模型
+ * 测试百度图像修复（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
  */
-export const testImageModel = async (): Promise<ApiResponse<{ image_size: [number, number] }>> => {
-  const response = await apiClient.post<ApiResponse<{ image_size: [number, number] }>>('/api/settings/tests/image-model');
+export const testBaiduInpaint = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/baidu-inpaint', settings || {});
   return response.data;
 };
 
 /**
- * 测试 MinerU PDF 解析
+ * 测试图像生成模型（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
  */
-export const testMineruPdf = async (): Promise<ApiResponse<{ batch_id: string; extract_id: string; content_preview: string }>> => {
-  const response = await apiClient.post<ApiResponse<{ batch_id: string; extract_id: string; content_preview: string }>>('/api/settings/tests/mineru-pdf');
+export const testImageModel = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/image-model', settings || {});
+  return response.data;
+};
+
+/**
+ * 测试 MinerU PDF 解析（异步）
+ * @param settings 可选的设置覆盖（未保存的设置）
+ * @returns 返回任务ID，需要通过 getTestStatus 轮询结果
+ */
+export const testMineruPdf = async (settings?: TestSettingsOverride): Promise<ApiResponse<{ task_id: string; status: string }>> => {
+  const response = await apiClient.post<ApiResponse<{ task_id: string; status: string }>>('/api/settings/tests/mineru-pdf', settings || {});
+  return response.data;
+};
+
+/**
+ * 查询测试任务状态
+ * @param taskId 任务ID
+ * @returns 任务状态信息
+ */
+export const getTestStatus = async (taskId: string): Promise<ApiResponse<{
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  result?: any;
+  error?: string;
+  message?: string;
+}>> => {
+  const response = await apiClient.get<ApiResponse<any>>(`/api/settings/tests/${taskId}/status`);
+  return response.data;
+};
+
+
+// ===== PPT 翻新相关 API =====
+
+/**
+ * 创建 PPT 翻新项目
+ * 上传 PDF/PPTX 文件，后端异步解析内容并填充大纲+描述
+ */
+export const createPptRenovationProject = async (
+  file: File,
+  options?: {
+    keepLayout?: boolean;
+    templateStyle?: string;
+    language?: string;
+  }
+): Promise<ApiResponse<{ project_id: string; task_id: string; page_count: number }>> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (options?.keepLayout) {
+    formData.append('keep_layout', 'true');
+  }
+  if (options?.templateStyle) {
+    formData.append('template_style', options.templateStyle);
+  }
+  if (options?.language) {
+    formData.append('language', options.language);
+  }
+
+  const response = await apiClient.post<ApiResponse<{ project_id: string; task_id: string; page_count: number }>>(
+    '/api/projects/renovation',
+    formData
+  );
+  return response.data;
+};
+
+/**
+ * 从图片提取风格描述（通用，不绑定项目）
+ */
+export const extractStyleFromImage = async (
+  imageFile: File
+): Promise<ApiResponse<{ style_description: string }>> => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  const response = await apiClient.post<ApiResponse<{ style_description: string }>>(
+    '/api/extract-style',
+    formData
+  );
   return response.data;
 };

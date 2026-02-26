@@ -6,26 +6,19 @@ import { downloadFile } from './index';
  * 获取项目标题
  */
 export const getProjectTitle = (project: Project): string => {
-  // 如果有 idea_prompt，优先使用
-  if (project.idea_prompt) {
-    return project.idea_prompt;
-  }
-  
-  // 如果没有 idea_prompt，尝试从第一个页面获取标题
+  // 从第一个页面的大纲标题获取项目名称
   if (project.pages && project.pages.length > 0) {
-    // 按 order_index 排序，找到第一个页面
-    const sortedPages = [...project.pages].sort((a, b) => 
+    const sortedPages = [...project.pages].sort((a, b) =>
       (a.order_index || 0) - (b.order_index || 0)
     );
     const firstPage = sortedPages[0];
-    
-    // 如果第一个页面有 outline_content 和 title，使用它
-    if (firstPage?.outline_content?.title) {
-      return firstPage.outline_content.title;
+
+    const title = firstPage?.outline_content?.title;
+    if (title) {
+      return title;
     }
   }
-  
-  // 默认返回未命名项目
+
   return '未命名项目';
 };
 
@@ -110,97 +103,120 @@ export const getProjectRoute = (project: Project): string => {
   return `/project/${projectId}/outline`;
 };
 
-// ========== Markdown 导出相关函数 ==========
+// ========== Markdown 导出/导入 ==========
 
-/**
- * 从描述内容中提取文本
- */
 export const getDescriptionText = (descContent: DescriptionContent | undefined | null): string => {
   if (!descContent) return '';
-  if ('text' in descContent) {
-    return (descContent.text as string) || '';
-  } else if ('text_content' in descContent && Array.isArray(descContent.text_content)) {
-    return descContent.text_content.join('\n');
-  }
+  if ('text' in descContent) return (descContent.text as string) || '';
+  if ('text_content' in descContent && Array.isArray(descContent.text_content)) return descContent.text_content.join('\n');
   return '';
 };
 
-/**
- * 将页面大纲转换为 Markdown 格式
- */
-export const pageOutlineToMarkdown = (page: Page, index: number): string => {
+export interface ExportOptions {
+  outline?: boolean;
+  description?: boolean;
+}
+
+const pageToMarkdown = (page: Page, index: number, opts: ExportOptions = {}): string => {
+  const includeOutline = opts.outline !== false;
+  const includeDesc = opts.description !== false;
   const title = page.outline_content?.title || `第 ${index + 1} 页`;
   const points = page.outline_content?.points || [];
-  
-  let markdown = `## 第 ${index + 1} 页: ${title}\n\n`;
-  
-  if (points.length > 0) {
-    points.forEach((point) => {
-      markdown += `- ${point}\n`;
-    });
-    markdown += '\n';
-  } else {
-    markdown += `*暂无要点*\n\n`;
-  }
-  
-  return markdown;
-};
-
-/**
- * 将页面描述转换为 Markdown 格式
- */
-export const pageDescriptionToMarkdown = (page: Page, index: number): string => {
-  const title = page.outline_content?.title || `第 ${index + 1} 页`;
   const descText = getDescriptionText(page.description_content);
-  
-  let markdown = `## 第 ${index + 1} 页: ${title}\n\n`;
-  
-  if (descText) {
-    markdown += `${descText}\n\n`;
-  } else {
-    markdown += `*暂无描述*\n\n`;
+
+  let md = `## 第 ${index + 1} 页: ${title}\n\n`;
+  if (page.part) md += `> 章节: ${page.part}\n\n`;
+
+  if (includeOutline) {
+    md += `**大纲要点：**\n`;
+    if (points.length > 0) {
+      points.forEach(p => { md += `- ${p}\n`; });
+    } else {
+      md += `*暂无要点*\n`;
+    }
+    md += '\n';
   }
-  
-  markdown += `---\n\n`;
-  
-  return markdown;
+
+  if (includeDesc) {
+    md += `**页面描述：**\n`;
+    if (descText) {
+      md += `${descText}\n`;
+    } else {
+      md += `*暂无描述*\n`;
+    }
+    md += '\n';
+  }
+
+  md += '---\n\n';
+  return md;
 };
 
-/**
- * 将项目大纲导出为 Markdown 文件
- */
-export const exportOutlineToMarkdown = (project: Project): void => {
-  const projectTitle = getProjectTitle(project);
-  
-  let markdown = `# ${projectTitle}\n\n`;
-  markdown += `> 生成时间: ${new Date().toLocaleString('zh-CN')}\n\n`;
-  markdown += `---\n\n`;
-  
-  project.pages.forEach((page, index) => {
-    markdown += pageOutlineToMarkdown(page, index);
+export const exportProjectToMarkdown = (project: Project, opts?: ExportOptions): void => {
+  let md = `# ${getProjectTitle(project)}\n\n`;
+  md += `> 生成时间: ${new Date().toLocaleString('zh-CN')}\n\n---\n\n`;
+  project.pages.forEach((page, i) => { md += pageToMarkdown(page, i, opts); });
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const prefix = opts?.outline === false ? '描述' : opts?.description === false ? '大纲' : '项目';
+  downloadFile(blob, `${prefix}_${project.id?.slice(0, 8) || 'export'}.md`);
+};
+
+// --- 导入 ---
+
+export interface ParsedPage {
+  title: string;
+  points: string[];
+  text: string;
+  part?: string;
+}
+
+const sanitize = (s: string) => s.replace(/<[^>]*>/g, '');
+
+const splitMarkdownPages = (markdown: string): string[] => {
+  return markdown.split(/^## 第 \d+ 页:/m).slice(1);
+};
+
+export const parseMarkdownPages = (markdown: string): ParsedPage[] => {
+  return splitMarkdownPages(markdown).map(section => {
+    const lines = section.split('\n');
+    const title = sanitize(lines[0].trim());
+
+    // Extract metadata
+    const partLine = lines.find(l => l.startsWith('> 章节: '));
+    const part = partLine ? sanitize(partLine.slice('> 章节: '.length).trim()) : undefined;
+
+    // Find section markers
+    const outlineIdx = lines.findIndex(l => l.trim() === '**大纲要点：**');
+    const descIdx = lines.findIndex(l => l.trim() === '**页面描述：**');
+
+    let points: string[] = [];
+    let text = '';
+
+    const stripTrailing = (arr: string[]) => {
+      while (arr.length && (arr[arr.length - 1].trim() === '---' || arr[arr.length - 1].trim() === '' || arr[arr.length - 1].trim() === '*暂无要点*' || arr[arr.length - 1].trim() === '*暂无描述*')) arr.pop();
+    };
+
+    if (outlineIdx >= 0) {
+      const end = descIdx >= 0 ? descIdx : lines.length;
+      points = lines.slice(outlineIdx + 1, end)
+        .filter(l => l.startsWith('- '))
+        .map(l => sanitize(l.slice(2).trim()));
+    }
+
+    if (descIdx >= 0) {
+      const descLines = lines.slice(descIdx + 1);
+      stripTrailing(descLines);
+      text = sanitize(descLines.join('\n').trim());
+    }
+
+    if (outlineIdx < 0 && descIdx < 0) {
+      // Legacy format: no markers
+      const contentLines = lines.slice(1);
+      while (contentLines.length && (contentLines[0].startsWith('> ') || contentLines[0].trim() === '')) contentLines.shift();
+      stripTrailing(contentLines);
+      points = contentLines.filter(l => l.startsWith('- ')).map(l => sanitize(l.slice(2).trim()));
+      text = sanitize(contentLines.filter(l => !l.startsWith('- ')).join('\n').trim());
+    }
+
+    return { title, points, text, part };
   });
-  
-  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-  const filename = `大纲_${project.id?.slice(0, 8) || 'export'}.md`;
-  downloadFile(blob, filename);
 };
-
-/**
- * 将项目页面描述导出为 Markdown 文件
- */
-export const exportDescriptionsToMarkdown = (project: Project): void => {
-  const projectTitle = getProjectTitle(project);
-  
-  let markdown = `# ${projectTitle}\n\n`;
-  markdown += `> 生成时间: ${new Date().toLocaleString('zh-CN')}\n\n`;
-  markdown += `---\n\n`;
-  
-  project.pages.forEach((page, index) => {
-    markdown += pageDescriptionToMarkdown(page, index);
-  });
-  
-  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-  const filename = `页面描述_${project.id?.slice(0, 8) || 'export'}.md`;
-  downloadFile(blob, filename);
-};
-

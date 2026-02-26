@@ -1,72 +1,68 @@
 """
-Google GenAI SDK implementation for text generation
+Google GenAI SDK — text generation provider
 
-Supports two modes:
-- Google AI Studio: Uses API key authentication
-- Vertex AI: Uses GCP service account authentication
+Operates in two authentication modes selected at construction time:
+  * API-key mode  (Google AI Studio or compatible proxy)
+  * Vertex AI mode (GCP service-account credentials via GOOGLE_APPLICATION_CREDENTIALS)
 """
 import logging
 from google import genai
 from google.genai import types
 from tenacity import retry, stop_after_attempt, wait_exponential
-from .base import TextProvider
+from .base import TextProvider, strip_think_tags
 from config import get_config
+from ..genai_client import make_genai_client
 
 logger = logging.getLogger(__name__)
 
 
+def _log_retry(retry_state):
+    """记录重试信息"""
+    logger.warning(
+        f"GenAI 请求失败，正在重试 ({retry_state.attempt_number}/{get_config().GENAI_MAX_RETRIES + 1})，"
+        f"错误: {retry_state.outcome.exception() if retry_state.outcome else 'unknown'}"
+    )
+
+
+def _validate_response(response):
+    """验证响应是否有效，无效则抛出异常触发重试"""
+    if response.text is None:
+        if hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'finish_reason'):
+                logger.warning(f"Response text is None, finish_reason: {candidate.finish_reason}")
+            if hasattr(candidate, 'safety_ratings'):
+                logger.warning(f"Safety ratings: {candidate.safety_ratings}")
+        raise ValueError("AI model returned empty response (response.text is None)")
+    return strip_think_tags(response.text)
+
+
 class GenAITextProvider(TextProvider):
-    """Text generation using Google GenAI SDK (supports both AI Studio and Vertex AI)"""
+    """Text generation via Google GenAI SDK (AI Studio / Vertex AI)"""
 
     def __init__(
         self,
+        model: str = "gemini-3-flash-preview",
         api_key: str = None,
         api_base: str = None,
-        model: str = "gemini-3-flash-preview",
         vertexai: bool = False,
         project_id: str = None,
-        location: str = None
+        location: str = None,
     ):
-        """
-        Initialize GenAI text provider
-
-        Args:
-            api_key: Google API key (for AI Studio mode)
-            api_base: API base URL (for proxies like aihubmix, AI Studio mode only)
-            model: Model name to use
-            vertexai: If True, use Vertex AI instead of AI Studio
-            project_id: GCP project ID (required for Vertex AI mode)
-            location: GCP region (for Vertex AI mode, default: us-central1)
-        """
-        timeout_ms = int(get_config().GENAI_TIMEOUT * 1000)
-
-        if vertexai:
-            # Vertex AI mode - uses service account credentials from GOOGLE_APPLICATION_CREDENTIALS
-            logger.info(f"Initializing GenAI text provider in Vertex AI mode, project: {project_id}, location: {location}")
-            self.client = genai.Client(
-                vertexai=True,
-                project=project_id,
-                location=location or 'us-central1',
-                http_options=types.HttpOptions(timeout=timeout_ms)
-            )
-        else:
-            # AI Studio mode - uses API key
-            http_options = types.HttpOptions(
-                base_url=api_base,
-                timeout=timeout_ms
-            ) if api_base else types.HttpOptions(timeout=timeout_ms)
-
-            self.client = genai.Client(
-                http_options=http_options,
-                api_key=api_key
-            )
-
+        self.client = make_genai_client(
+            vertexai=vertexai,
+            api_key=api_key,
+            api_base=api_base,
+            project_id=project_id,
+            location=location,
+        )
         self.model = model
     
     @retry(
         stop=stop_after_attempt(get_config().GENAI_MAX_RETRIES + 1),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
+        before_sleep=_log_retry
     )
     def generate_text(self, prompt: str, thinking_budget: int = 0) -> str:
         """
@@ -89,12 +85,13 @@ class GenAITextProvider(TextProvider):
             contents=prompt,
             config=types.GenerateContentConfig(**config_params) if config_params else None,
         )
-        return response.text
+        return _validate_response(response)
     
     @retry(
         stop=stop_after_attempt(get_config().GENAI_MAX_RETRIES + 1),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
+        before_sleep=_log_retry
     )
     def generate_with_image(self, prompt: str, image_path: str, thinking_budget: int = 0) -> str:
         """
@@ -126,4 +123,4 @@ class GenAITextProvider(TextProvider):
             contents=contents,
             config=types.GenerateContentConfig(**config_params) if config_params else None,
         )
-        return response.text
+        return _validate_response(response)

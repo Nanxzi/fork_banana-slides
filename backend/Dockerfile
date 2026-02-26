@@ -28,6 +28,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     fi && \
     apt-get update && apt-get install -y \
     curl \
+    libreoffice-impress \
     && rm -rf /var/lib/apt/lists/*
 
 # 从 uv 阶段复制二进制文件
@@ -55,11 +56,16 @@ RUN if [ -f uv.lock ]; then \
 # 复制后端代码
 COPY backend/ ./backend/
 
+# 复制测试资源
+COPY assets/ ./assets/
+
 # 创建必要的目录
 RUN mkdir -p /app/backend/instance /app/uploads
 
 ENV PYTHONPATH=/app
 ENV FLASK_APP=backend/app.py
+# 容器内固定监听 5000；宿主机端口由 docker-compose 的 BACKEND_PORT 控制
+ENV IN_DOCKER=1
 
 # 暴露端口
 EXPOSE 5000

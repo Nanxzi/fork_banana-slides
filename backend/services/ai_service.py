@@ -21,9 +21,12 @@ from .prompts import (
     get_description_to_outline_prompt,
     get_description_split_prompt,
     get_outline_refinement_prompt,
-    get_descriptions_refinement_prompt
+    get_descriptions_refinement_prompt,
+    get_ppt_page_content_extraction_prompt,
+    get_layout_caption_prompt,
+    get_style_extraction_prompt
 )
-from .ai_providers import get_text_provider, get_image_provider, TextProvider, ImageProvider
+from .ai_providers import get_text_provider, get_image_provider, get_caption_provider, TextProvider, ImageProvider
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -68,7 +71,7 @@ class ProjectContext:
 class AIService:
     """Service for AI model interactions using pluggable providers"""
     
-    def __init__(self, text_provider: TextProvider = None, image_provider: ImageProvider = None):
+    def __init__(self, text_provider: TextProvider = None, image_provider: ImageProvider = None, caption_provider: TextProvider = None):
         """
         Initialize AI service with providers
         
@@ -101,9 +104,16 @@ class AIService:
             self.enable_image_reasoning = False
             self.image_thinking_budget = 1024
         
+        # Caption model for multimodal (image→text) tasks
+        if has_app_context() and current_app and hasattr(current_app, "config"):
+            self.caption_model = current_app.config.get("IMAGE_CAPTION_MODEL", config.IMAGE_CAPTION_MODEL)
+        else:
+            self.caption_model = config.IMAGE_CAPTION_MODEL
+
         # Use provided providers or create from factory based on AI_PROVIDER_FORMAT (from Flask config or env var)
         self.text_provider = text_provider or get_text_provider(model=self.text_model)
         self.image_provider = image_provider or get_image_provider(model=self.image_model)
+        self.caption_provider = caption_provider or get_caption_provider(model=self.caption_model)
     
     def _get_text_thinking_budget(self) -> int:
         """
@@ -230,24 +240,25 @@ class AIService:
             
         Raises:
             json.JSONDecodeError: JSON解析失败（重试3次后仍失败）
-            ValueError: text_provider 不支持图片输入
+            ValueError: caption_provider 不支持图片输入
         """
-        # 调用AI生成文本（带图片），根据 enable_text_reasoning 配置调整 thinking_budget
+        # 使用 caption_provider（支持图片输入的多模态模型）
         actual_budget = self._get_text_thinking_budget()
-        if hasattr(self.text_provider, 'generate_with_image'):
-            response_text = self.text_provider.generate_with_image(
+        provider = self.caption_provider
+        if hasattr(provider, 'generate_with_image'):
+            response_text = provider.generate_with_image(
                 prompt=prompt,
                 image_path=image_path,
                 thinking_budget=actual_budget
             )
-        elif hasattr(self.text_provider, 'generate_text_with_images'):
-            response_text = self.text_provider.generate_text_with_images(
+        elif hasattr(provider, 'generate_text_with_images'):
+            response_text = provider.generate_text_with_images(
                 prompt=prompt,
                 images=[image_path],
                 thinking_budget=actual_budget
             )
         else:
-            raise ValueError("text_provider 不支持图片输入")
+            raise ValueError("caption_provider 不支持图片输入")
         
         # 清理响应文本：移除markdown代码块标记和多余空白
         cleaned_text = response_text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
@@ -504,6 +515,18 @@ class AIService:
                                 logger.debug(f"Loaded MinerU image from local path: {local_path}")
                             else:
                                 logger.warning(f"MinerU image file not found (with prefix matching): {ref_img}, skipping...")
+                        elif ref_img.startswith('/files/'):
+                            # 通用 /files/ 路径（materials、项目文件等），转换为文件系统路径
+                            upload_folder = os.environ.get('UPLOAD_FOLDER', '')
+                            relative_path = ref_img[len('/files/'):].lstrip('/')
+                            local_path = os.path.abspath(os.path.join(upload_folder, relative_path))
+                            if not local_path.startswith(os.path.abspath(upload_folder)):
+                                logger.warning(f"Path traversal attempt blocked: {ref_img}, skipping...")
+                            elif os.path.exists(local_path):
+                                ref_images.append(Image.open(local_path))
+                                logger.debug(f"Loaded image from local path: {local_path}")
+                            else:
+                                logger.warning(f"Local file not found: {local_path} (from {ref_img}), skipping...")
                         else:
                             logger.warning(f"Invalid image reference: {ref_img}, skipping...")
             
@@ -641,10 +664,64 @@ class AIService:
             language=language
         )
         descriptions = self.generate_json(refinement_prompt, thinking_budget=1000)
-        
+
         # 确保返回的是字符串列表
         if isinstance(descriptions, list):
             return [str(desc) for desc in descriptions]
         else:
             raise ValueError("Expected a list of page descriptions, but got: " + str(type(descriptions)))
+
+    def extract_page_content(self, markdown_text: str, language: str = 'zh') -> Dict:
+        """
+        从 fileparser 解析出的 markdown 文本中提取页面结构化内容
+
+        Args:
+            markdown_text: 单页 PDF 解析出的 markdown 文本
+            language: 输出语言
+
+        Returns:
+            Dict with keys: title, points, description
+        """
+        prompt = get_ppt_page_content_extraction_prompt(markdown_text, language=language)
+        result = self.generate_json(prompt, thinking_budget=1000)
+
+        # Ensure required fields exist
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict, got {type(result)}")
+
+        result.setdefault('title', '')
+        result.setdefault('points', [])
+        result.setdefault('description', '')
+
+        return result
+
+    def _generate_text_from_image(self, prompt: str, image_path: str) -> str:
+        """Helper to generate text from a prompt and an image, using caption_provider."""
+        actual_budget = self._get_text_thinking_budget()
+        provider = self.caption_provider
+
+        if hasattr(provider, 'generate_with_image'):
+            response_text = provider.generate_with_image(
+                prompt=prompt,
+                image_path=image_path,
+                thinking_budget=actual_budget
+            )
+        elif hasattr(provider, 'generate_text_with_images'):
+            response_text = provider.generate_text_with_images(
+                prompt=prompt,
+                images=[image_path],
+                thinking_budget=actual_budget
+            )
+        else:
+            raise ValueError("caption_provider 不支持图片输入")
+
+        return response_text.strip()
+
+    def generate_layout_caption(self, image_path: str) -> str:
+        """使用 caption model 描述 PPT 页面的排版布局"""
+        return self._generate_text_from_image(get_layout_caption_prompt(), image_path)
+
+    def extract_style_description(self, image_path: str) -> str:
+        """从图片中提取风格描述"""
+        return self._generate_text_from_image(get_style_extraction_prompt(), image_path)
 
