@@ -2,20 +2,22 @@ name: Sync upstream
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # 每天 UTC 1点，对应北京时间每天9点
-  workflow_dispatch:
+    - cron: '0 4 * * *'  # 北京12点 UTC时间4点执行一次
+  workflow_dispatch:      # 允许手动触发
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-
+      contents: write       # 必须：允许写入代码
+      workflows: write      # 必须：允许修改工作流文件
+      actions: write        # 补充：避免Actions相关权限遗漏
     steps:
-      - name: Checkout main
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          fetch-depth: 0    # 拉取完整历史，避免合并报错
+          persist-credentials: false  # 禁用默认凭证缓存（关键）
 
       - name: Set up Git
         run: |
@@ -25,17 +27,23 @@ jobs:
       - name: Add upstream remote
         run: git remote add upstream https://github.com/Anionex/banana-slides.git
 
-      - name: Fetch upstream main
-        run: git fetch upstream main
+      - name: Fetch upstream changes
+        run: git fetch upstream
 
       - name: Merge upstream/main into main
         run: |
           git checkout main
           git merge upstream/main --allow-unrelated-histories -X theirs || true
           git add .
-          git commit -m "auto: sync upstream main branch" || true
-
-      - name: Push changes
-        run: git push origin main --force
+          git commit -m "auto-resolve conflict using upstream (theirs)" || true
+          
+      - name: Push changes with explicit token
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_URL: https://github.com/WuXiangM/fork_banana-slides.git
+        run: |
+          # 重新设置origin remote，显式带上token（核心修复）
+          git remote remove origin
+          git remote add origin https://x-access-token:${GH_TOKEN}@github.com/WuXiangM/fork_banana-slides.git
+          # 推送（如需强制推送，改为 git push origin main --force）
+          git push origin main
