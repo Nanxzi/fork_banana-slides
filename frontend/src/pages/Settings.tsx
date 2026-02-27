@@ -73,7 +73,7 @@ const settingsI18n = {
         tip: "提示：图像生成和 MinerU 测试可能需要 30-60 秒，请耐心等待。",
         startTest: "开始测试", testing: "测试中...", testTimeout: "测试超时，请重试", testFailed: "测试失败",
         tests: {
-          baiduOcr: { title: "Baidu OCR 服务", description: "识别测试图片文字，验证 BAIDU_OCR_API_KEY 配置" },
+          baiduOcr: { title: "Baidu OCR 服务", description: "识别测试图片文字，验证 BAIDU_API_KEY 配置" },
           textModel: { title: "文本生成模型", description: "发送短提示词，验证文本模型与 API 配置" },
           captionModel: { title: "图片识别模型", description: "生成测试图片并请求模型输出描述" },
           baiduInpaint: { title: "Baidu 图像修复", description: "使用测试图片执行修复，验证百度 inpaint 服务" },
@@ -91,7 +91,9 @@ const settingsI18n = {
         loadFailed: "加载设置失败", saveSuccess: "设置保存成功", saveFailed: "保存设置失败",
         resetConfirm: "将把大模型、图像生成和并发等所有配置恢复为环境默认值，已保存的自定义设置将丢失，确定继续吗？",
         resetTitle: "确认重置为默认配置", resetSuccess: "设置已重置", resetFailed: "重置设置失败",
-        testServiceTip: "建议在本页底部进行服务测试，验证关键配置"
+        testServiceTip: "建议在本页底部进行服务测试，验证关键配置",
+        resetConfirmBtn: "确定重置", resetCancelBtn: "取消", unknownError: "未知错误",
+        testSuccess: "测试成功"
       }
     }
   },
@@ -163,7 +165,7 @@ const settingsI18n = {
         tip: "Tip: Image generation and MinerU tests may take 30-60 seconds, please be patient.",
         startTest: "Start Test", testing: "Testing...", testTimeout: "Test timeout, please retry", testFailed: "Test failed",
         tests: {
-          baiduOcr: { title: "Baidu OCR Service", description: "Recognize text in test image, verify BAIDU_OCR_API_KEY configuration" },
+          baiduOcr: { title: "Baidu OCR Service", description: "Recognize text in test image, verify BAIDU_API_KEY configuration" },
           textModel: { title: "Text Generation Model", description: "Send short prompt to verify text model and API configuration" },
           captionModel: { title: "Image Caption Model", description: "Generate test image and request model to output description" },
           baiduInpaint: { title: "Baidu Image Inpainting", description: "Use test image for inpainting, verify Baidu inpaint service" },
@@ -181,7 +183,9 @@ const settingsI18n = {
         loadFailed: "Failed to load settings", saveSuccess: "Settings saved successfully", saveFailed: "Failed to save settings",
         resetConfirm: "This will reset all configurations (LLM, image generation, concurrency, etc.) to environment defaults. Custom settings will be lost. Continue?",
         resetTitle: "Confirm Reset to Default", resetSuccess: "Settings reset successfully", resetFailed: "Failed to reset settings",
-        testServiceTip: "It's recommended to test services at the bottom of this page to verify configurations"
+        testServiceTip: "It's recommended to test services at the bottom of this page to verify configurations",
+        resetConfirmBtn: "Confirm Reset", resetCancelBtn: "Cancel", unknownError: "Unknown error",
+        testSuccess: "Test passed"
       }
     }
   }
@@ -268,7 +272,7 @@ const initialFormData = {
   text_thinking_budget: 1024,
   enable_image_reasoning: false,
   image_thinking_budget: 1024,
-  baidu_ocr_api_key: '',
+  baidu_api_key: '',
   // LazyLLM 配置
   text_model_source: '',
   image_model_source: '',
@@ -342,7 +346,7 @@ const formDataFromSettings = (data: SettingsType): typeof initialFormData => ({
   text_thinking_budget: data.text_thinking_budget || 1024,
   enable_image_reasoning: data.enable_image_reasoning || false,
   image_thinking_budget: data.image_thinking_budget || 1024,
-  baidu_ocr_api_key: '',
+  baidu_api_key: '',
   text_model_source: data.text_model_source || '',
   image_model_source: data.image_model_source || '',
   image_caption_model_source: data.image_caption_model_source || '',
@@ -490,12 +494,12 @@ export const Settings: React.FC = () => {
       icon: <FileText size={20} />,
       fields: [
         {
-          key: 'baidu_ocr_api_key',
+          key: 'baidu_api_key',
           label: t('settings.fields.baiduOcrApiKey'),
           type: 'password',
           placeholder: t('settings.fields.baiduOcrApiKeyPlaceholder'),
           sensitiveField: true,
-          lengthKey: 'baidu_ocr_api_key_length',
+          lengthKey: 'baidu_api_key_length',
           description: t('settings.fields.baiduOcrApiKeyDesc'),
           link: 'https://console.bce.baidu.com/iam/#/iam/apikey/list',
         },
@@ -518,7 +522,7 @@ export const Settings: React.FC = () => {
     } catch (error: any) {
       console.error('加载设置失败:', error);
       show({
-        message: '加载设置失败: ' + (error?.message || '未知错误'),
+        message: t('settings.messages.loadFailed') + ': ' + (error?.message || t('settings.messages.unknownError')),
         type: 'error'
       });
     } finally {
@@ -530,7 +534,7 @@ export const Settings: React.FC = () => {
     setIsSaving(true);
     try {
       const {
-        api_key, mineru_token, baidu_ocr_api_key, lazyllm_api_keys,
+        api_key, mineru_token, baidu_api_key, lazyllm_api_keys,
         text_api_key, image_api_key, image_caption_api_key,
         ...otherData
       } = formData;
@@ -544,7 +548,7 @@ export const Settings: React.FC = () => {
       // Only send sensitive fields if user entered a new value
       if (api_key) payload.api_key = api_key;
       if (mineru_token) payload.mineru_token = mineru_token;
-      if (baidu_ocr_api_key) payload.baidu_ocr_api_key = baidu_ocr_api_key;
+      if (baidu_api_key) payload.baidu_api_key = baidu_api_key;
       if (text_api_key) payload.text_api_key = text_api_key;
       if (image_api_key) payload.image_api_key = image_api_key;
       if (image_caption_api_key) payload.image_caption_api_key = image_caption_api_key;
@@ -565,7 +569,7 @@ export const Settings: React.FC = () => {
         // Clear all sensitive fields after save
         setFormData(prev => ({
           ...prev,
-          api_key: '', mineru_token: '', baidu_ocr_api_key: '',
+          api_key: '', mineru_token: '', baidu_api_key: '',
           lazyllm_api_keys: {},
           text_api_key: '', image_api_key: '', image_caption_api_key: '',
         }));
@@ -573,7 +577,7 @@ export const Settings: React.FC = () => {
     } catch (error: any) {
       console.error('保存设置失败:', error);
       show({
-        message: '保存设置失败: ' + (error?.response?.data?.error?.message || error?.message || '未知错误'),
+        message: t('settings.messages.saveFailed') + ': ' + (error?.response?.data?.error?.message || error?.message || t('settings.messages.unknownError')),
         type: 'error'
       });
     } finally {
@@ -583,7 +587,7 @@ export const Settings: React.FC = () => {
 
   const handleReset = () => {
     confirm(
-      '将把大模型、图像生成和并发等所有配置恢复为环境默认值，已保存的自定义设置将丢失，确定继续吗？',
+      t('settings.messages.resetConfirm'),
       async () => {
         setIsSaving(true);
         try {
@@ -596,7 +600,7 @@ export const Settings: React.FC = () => {
         } catch (error: any) {
           console.error('重置设置失败:', error);
           show({
-            message: '重置设置失败: ' + (error?.message || '未知错误'),
+            message: t('settings.messages.resetFailed') + ': ' + (error?.message || t('settings.messages.unknownError')),
             type: 'error'
           });
         } finally {
@@ -604,9 +608,9 @@ export const Settings: React.FC = () => {
         }
       },
       {
-        title: '确认重置为默认配置',
-        confirmText: '确定重置',
-        cancelText: '取消',
+        title: t('settings.messages.resetTitle'),
+        confirmText: t('settings.messages.resetConfirmBtn'),
+        cancelText: t('settings.messages.resetCancelBtn'),
         variant: 'warning',
       }
     );
@@ -642,7 +646,7 @@ export const Settings: React.FC = () => {
       if (formData.image_caption_model) testSettings.image_caption_model = formData.image_caption_model;
       if (formData.mineru_api_base) testSettings.mineru_api_base = formData.mineru_api_base;
       if (formData.mineru_token) testSettings.mineru_token = formData.mineru_token;
-      if (formData.baidu_ocr_api_key) testSettings.baidu_ocr_api_key = formData.baidu_ocr_api_key;
+      if (formData.baidu_api_key) testSettings.baidu_api_key = formData.baidu_api_key;
       if (formData.image_resolution) testSettings.image_resolution = formData.image_resolution;
 
       // Per-model provider source overrides (always send, even empty, to clear saved values)
@@ -685,12 +689,12 @@ export const Settings: React.FC = () => {
           if (taskStatus === 'COMPLETED') {
             clearInterval(pollInterval);
             const detail = formatDetail(statusResponse.data.result || {});
-            const message = statusResponse.data.message || '测试成功';
+            const message = statusResponse.data.message || t('settings.messages.testSuccess');
             updateServiceTest(key, { status: 'success', message, detail });
             show({ message, type: 'success' });
           } else if (taskStatus === 'FAILED') {
             clearInterval(pollInterval);
-            const errorMessage = statusResponse.data.error || '测试失败';
+            const errorMessage = statusResponse.data.error || t('settings.serviceTest.testFailed');
             updateServiceTest(key, { status: 'error', message: errorMessage });
             show({ message: `${t('settings.serviceTest.testFailed')}: ${errorMessage}`, type: 'error' });
           }
@@ -707,7 +711,7 @@ export const Settings: React.FC = () => {
       setTimeout(() => {
         clearInterval(pollInterval);
         if (serviceTestStates[key]?.status === 'loading') {
-          updateServiceTest(key, { status: 'error', message: '测试超时' });
+          updateServiceTest(key, { status: 'error', message: t('settings.serviceTest.testTimeout') });
           show({ message: t('settings.serviceTest.testTimeout'), type: 'error' });
         }
       }, 120000);

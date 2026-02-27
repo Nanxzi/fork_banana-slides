@@ -270,10 +270,10 @@ def _load_settings_to_config(app):
         app.config['IMAGE_THINKING_BUDGET'] = settings.image_thinking_budget
         logging.info(f"Loaded reasoning config: text={settings.enable_text_reasoning}(budget={settings.text_thinking_budget}), image={settings.enable_image_reasoning}(budget={settings.image_thinking_budget})")
         
-        # Load Baidu OCR settings
-        if settings.baidu_ocr_api_key:
-            app.config['BAIDU_OCR_API_KEY'] = settings.baidu_ocr_api_key
-            logging.info("Loaded BAIDU_OCR_API_KEY from settings")
+        # Load Baidu API settings
+        if settings.baidu_api_key:
+            app.config['BAIDU_API_KEY'] = settings.baidu_api_key
+            logging.info("Loaded BAIDU_API_KEY from settings")
 
         # Load LazyLLM source settings
         if settings.text_model_source:
@@ -303,7 +303,7 @@ def _load_settings_to_config(app):
                 logging.warning("Failed to parse lazyllm_api_keys from settings")
 
     except Exception as e:
-        if "no such table" in str(e):
+        if isinstance(e, SQLAlchemyError) and "no such table: settings" in str(e):
             logging.debug(f"Settings table not yet created (expected on first boot): {e}")
         else:
             logging.warning(f"Could not load settings from database: {e}")

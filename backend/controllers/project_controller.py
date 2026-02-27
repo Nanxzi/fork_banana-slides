@@ -1134,16 +1134,23 @@ def create_ppt_renovation_project():
             except subprocess.TimeoutExpired:
                 raise ValueError("PPTX to PDF conversion timed out")
             except FileNotFoundError:
-                raise ValueError("LibreOffice not found. Please install LibreOffice for PPTX support.")
+                raise ValueError("PPTX conversion requires LibreOffice, which is not installed. Please convert your PPTX to PDF locally before uploading.")
 
         # Convert PDF to page images using PyMuPDF or pdf2image
         pages_dir = project_dir / "pages"
         pages_dir.mkdir(parents=True, exist_ok=True)
 
         page_image_paths = []
+        pdf_page_width = None
+        pdf_page_height = None
         try:
             import fitz  # PyMuPDF
             doc = fitz.open(pdf_path)
+            # Extract page dimensions from the first page before rendering
+            if len(doc) > 0:
+                rect = doc[0].rect
+                pdf_page_width = rect.width
+                pdf_page_height = rect.height
             for i, fitz_page in enumerate(doc):
                 try:
                     mat = fitz.Matrix(2, 2)
@@ -1162,6 +1169,10 @@ def create_ppt_renovation_project():
                 images = convert_from_path(pdf_path, dpi=200)
                 for i, img in enumerate(images):
                     try:
+                        # Extract page dimensions from the first image
+                        if pdf_page_width is None:
+                            pdf_page_width = img.width
+                            pdf_page_height = img.height
                         img_path = str(pages_dir / f"page_{i + 1}_original.png")
                         img.save(img_path, 'PNG')
                         page_image_paths.append(img_path)
@@ -1177,6 +1188,15 @@ def create_ppt_renovation_project():
             raise ValueError("All pages failed to render from PDF")
 
         logger.info(f"Rendered {len(valid_pages)}/{len(page_image_paths)} page images from PDF")
+
+        # Set project aspect ratio from PDF page dimensions
+        if pdf_page_width and pdf_page_height and pdf_page_width > 0 and pdf_page_height > 0:
+            try:
+                raw_ratio = f"{int(round(pdf_page_width))}:{int(round(pdf_page_height))}"
+                project.image_aspect_ratio = normalize_aspect_ratio(raw_ratio)
+                logger.info(f"Set project aspect ratio from PDF: {pdf_page_width}x{pdf_page_height} -> {project.image_aspect_ratio}")
+            except (ValueError, OverflowError) as e:
+                logger.warning(f"Could not normalize PDF aspect ratio ({pdf_page_width}x{pdf_page_height}): {e}, keeping default 16:9")
 
         # Create Page records with initial images
         from services.task_manager import save_image_with_version

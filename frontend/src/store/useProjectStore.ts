@@ -3,6 +3,75 @@ import type { Project } from '@/types';
 import * as api from '@/api/endpoints';
 import { debounce, normalizeProject, normalizeErrorMessage } from '@/utils';
 import { devLog } from '@/utils/logger';
+import { getT } from '@/utils/i18nHelper';
+
+const storeI18n = {
+  zh: {
+    store: {
+      createFailed: '创建项目失败',
+      createNoId: '项目创建失败：未返回项目ID',
+      syncFailed: '同步项目失败',
+      projectNotFound: '项目不存在，可能已被删除',
+      requestFailed: '请求失败',
+      requestFailedStatus: '请求失败: {{status}}',
+      networkError: '网络错误，请检查后端服务是否启动',
+      updateOrderFailed: '更新顺序失败',
+      newPage: '新页面',
+      addPageFailed: '添加页面失败',
+      deletePageFailed: '删除页面失败',
+      taskStartFailed: '任务启动失败',
+      taskFailed: '任务失败',
+      unknownTaskStatus: '未知任务状态: {{status}}',
+      taskQueryFailed: '任务查询失败',
+      generateOutlineFailed: '生成大纲失败',
+      generateFromDescFailed: '从描述生成失败',
+      projectIdMissing: '项目ID不存在',
+      noTaskId: '未收到任务ID',
+      generateDescFailed: '生成描述失败',
+      generateDescTimeout: '生成描述失败：轮询超时',
+      startGenerationFailed: '启动生成任务失败',
+      regenerateFailed: '重新生成失败',
+      batchGenerateFailed: '批量生成失败',
+      editImageFailed: '编辑图片失败',
+      exportLinkFailed: '导出链接获取失败',
+      exportFailed: '导出失败',
+      exportEditableFailed: '导出可编辑PPTX失败',
+    }
+  },
+  en: {
+    store: {
+      createFailed: 'Failed to create project',
+      createNoId: 'Project creation failed: no project ID returned',
+      syncFailed: 'Failed to sync project',
+      projectNotFound: 'Project not found, it may have been deleted',
+      requestFailed: 'Request failed',
+      requestFailedStatus: 'Request failed: {{status}}',
+      networkError: 'Network error, please check if the backend service is running',
+      updateOrderFailed: 'Failed to update page order',
+      newPage: 'New Page',
+      addPageFailed: 'Failed to add page',
+      deletePageFailed: 'Failed to delete page',
+      taskStartFailed: 'Failed to start task',
+      taskFailed: 'Task failed',
+      unknownTaskStatus: 'Unknown task status: {{status}}',
+      taskQueryFailed: 'Failed to query task',
+      generateOutlineFailed: 'Failed to generate outline',
+      generateFromDescFailed: 'Failed to generate from description',
+      projectIdMissing: 'Project ID not found',
+      noTaskId: 'No task ID received',
+      generateDescFailed: 'Failed to generate description',
+      generateDescTimeout: 'Failed to generate description: polling timeout',
+      startGenerationFailed: 'Failed to start generation task',
+      regenerateFailed: 'Failed to regenerate',
+      batchGenerateFailed: 'Batch generation failed',
+      editImageFailed: 'Failed to edit image',
+      exportLinkFailed: 'Failed to get export link',
+      exportFailed: 'Export failed',
+      exportEditableFailed: 'Failed to export editable PPTX',
+    }
+  }
+};
+const t = getT(storeI18n);
 
 interface ProjectState {
   // 状态
@@ -93,9 +162,11 @@ const debouncedUpdatePage = debounce(
     }
         
         // API调用成功后，同步项目状态以更新updated_at
-        // 这样可以确保历史记录页面显示最新的更新时间
-        const { syncProject } = get();
-        await syncProject(projectId);
+        // 图片生成期间 poll 已在 2s 同步，跳过以避免并发竞态
+        const { syncProject, pageGeneratingTasks } = get();
+        if (Object.keys(pageGeneratingTasks).length === 0) {
+          await syncProject(projectId);
+        }
       } catch (error: any) {
         console.error('保存页面失败:', error);
         // 可以在这里添加错误提示，但为了避免频繁提示，暂时只记录日志
@@ -150,7 +221,7 @@ const debouncedUpdatePage = debounce(
       const projectId = response.data?.project_id;
 
       if (!projectId) {
-        throw new Error('项目创建失败：未返回项目ID');
+        throw new Error(t('store.createNoId'));
       }
 
       // 2. 关联参考文件到项目（在生成之前，确保 AI 能读取参考文件）
@@ -203,7 +274,7 @@ const debouncedUpdatePage = debounce(
         localStorage.setItem('currentProjectId', project.id!);
       }
     } catch (error: any) {
-      set({ error: normalizeErrorMessage(error.message || '创建项目失败') });
+      set({ error: normalizeErrorMessage(error.message || t('store.createFailed')) });
       throw error;
     } finally {
       set({ isGlobalLoading: false });
@@ -213,7 +284,7 @@ const debouncedUpdatePage = debounce(
   // 同步项目数据
   syncProject: async (projectId?: string) => {
     const { currentProject } = get();
-    
+
     // 如果没有提供 projectId，尝试从 currentProject 或 localStorage 获取
     let targetProjectId = projectId;
     if (!targetProjectId) {
@@ -223,7 +294,7 @@ const debouncedUpdatePage = debounce(
         targetProjectId = localStorage.getItem('currentProjectId') || undefined;
       }
     }
-    
+
     if (!targetProjectId) {
       console.warn('syncProject: 没有可用的项目ID');
       return;
@@ -244,7 +315,7 @@ const debouncedUpdatePage = debounce(
       }
     } catch (error: any) {
       // 提取更详细的错误信息
-      let errorMessage = '同步项目失败';
+      let errorMessage = t('store.syncFailed');
       let shouldClearStorage = false;
       
       if (error.response) {
@@ -252,7 +323,7 @@ const debouncedUpdatePage = debounce(
         const errorData = error.response.data;
         if (error.response.status === 404) {
           // 404错误：项目不存在，清除localStorage
-          errorMessage = errorData?.error?.message || '项目不存在，可能已被删除';
+          errorMessage = errorData?.error?.message || t('store.projectNotFound');
           shouldClearStorage = true;
         } else if (errorData?.error?.message) {
           // 从后端错误格式中提取消息
@@ -260,13 +331,13 @@ const debouncedUpdatePage = debounce(
         } else if (errorData?.message) {
           errorMessage = errorData.message;
         } else if (errorData?.error) {
-          errorMessage = typeof errorData.error === 'string' ? errorData.error : errorData.error.message || '请求失败';
+          errorMessage = typeof errorData.error === 'string' ? errorData.error : errorData.error.message || t('store.requestFailed');
         } else {
-          errorMessage = `请求失败: ${error.response.status}`;
+          errorMessage = t('store.requestFailedStatus', { status: error.response.status });
         }
       } else if (error.request) {
         // 请求已发送但没有收到响应
-        errorMessage = '网络错误，请检查后端服务是否启动';
+        errorMessage = t('store.networkError');
       } else if (error.message) {
         // 其他错误
         errorMessage = error.message;
@@ -337,7 +408,7 @@ const debouncedUpdatePage = debounce(
     try {
       await api.updatePagesOrder(currentProject.id, newOrder);
     } catch (error: any) {
-      set({ error: error.message || '更新顺序失败' });
+      set({ error: error.message || t('store.updateOrderFailed') });
       // 失败后重新同步
       await get().syncProject();
     }
@@ -350,7 +421,7 @@ const debouncedUpdatePage = debounce(
 
     try {
       const newPage = {
-        outline_content: { title: '新页面', points: [] },
+        outline_content: { title: t('store.newPage'), points: [] },
         order_index: currentProject.pages.length,
       };
 
@@ -359,7 +430,7 @@ const debouncedUpdatePage = debounce(
         await get().syncProject();
       }
     } catch (error: any) {
-      set({ error: error.message || '添加页面失败' });
+      set({ error: error.message || t('store.addPageFailed') });
     }
   },
 
@@ -372,7 +443,7 @@ const debouncedUpdatePage = debounce(
       await api.deletePage(currentProject.id, pageId);
       await get().syncProject();
     } catch (error: any) {
-      set({ error: error.message || '删除页面失败' });
+      set({ error: error.message || t('store.deletePageFailed') });
     }
   },
 
@@ -398,7 +469,7 @@ const debouncedUpdatePage = debounce(
       }
     } catch (error: any) {
       console.error('[异步任务] 启动失败:', error);
-      set({ error: error.message || '任务启动失败', isGlobalLoading: false });
+      set({ error: error.message || t('store.taskStartFailed'), isGlobalLoading: false });
       throw error;
     }
   },
@@ -463,7 +534,7 @@ const debouncedUpdatePage = debounce(
         } else if (task.status === 'FAILED') {
           console.error(`[轮询] Task ${taskId} 失败:`, task.error_message || task.error);
           set({ 
-            error: normalizeErrorMessage(task.error_message || task.error || '任务失败'),
+            error: normalizeErrorMessage(task.error_message || task.error || t('store.taskFailed')),
             activeTaskId: null,
             taskProgress: null,
             isGlobalLoading: false
@@ -476,7 +547,7 @@ const debouncedUpdatePage = debounce(
           // 未知状态，停止轮询
           console.warn(`[轮询] Task ${taskId} 未知状态: ${task.status}，停止轮询`);
           set({ 
-            error: `未知任务状态: ${task.status}`,
+            error: `${t('store.unknownTaskStatus', { status: task.status })}`,
             activeTaskId: null,
             taskProgress: null,
             isGlobalLoading: false
@@ -485,7 +556,7 @@ const debouncedUpdatePage = debounce(
       } catch (error: any) {
         console.error('任务轮询错误:', error);
         set({ 
-          error: normalizeErrorMessage(error.message || '任务查询失败'),
+          error: normalizeErrorMessage(error.message || t('store.taskQueryFailed')),
           activeTaskId: null,
           isGlobalLoading: false
         });
@@ -517,7 +588,7 @@ const debouncedUpdatePage = debounce(
         error.response?.data?.error?.message ||
         error.response?.data?.message ||
         error.message ||
-        '生成大纲失败';
+        t('store.generateOutlineFailed');
       set({ error: normalizeErrorMessage(message) });
       throw error;
     } finally {
@@ -543,7 +614,7 @@ const debouncedUpdatePage = debounce(
       devLog('[从描述生成] 刷新后的项目:', updatedProject?.pages.length, '个页面');
     } catch (error: any) {
       console.error('[从描述生成] 错误:', error);
-      set({ error: error.message || '从描述生成失败' });
+      set({ error: error.message || t('store.generateFromDescFailed') });
       throw error;
     } finally {
       set({ isGlobalLoading: false });
@@ -573,14 +644,14 @@ const debouncedUpdatePage = debounce(
       // 调用批量生成接口，返回 task_id
       const projectId = currentProject.id;
       if (!projectId) {
-        throw new Error('项目ID不存在');
+        throw new Error(t('store.projectIdMissing'));
       }
       
       const response = await api.generateDescriptions(projectId);
       const taskId = response.data?.task_id;
       
       if (!taskId) {
-        throw new Error('未收到任务ID');
+        throw new Error(t('store.noTaskId'));
       }
       
       // 启动轮询任务状态和定期同步项目数据
@@ -635,7 +706,7 @@ const debouncedUpdatePage = debounce(
                 pageDescriptionGeneratingTasks: {},
                 taskProgress: null,
                 activeTaskId: null,
-                error: normalizeErrorMessage(task.error_message || task.error || '生成描述失败')
+                error: normalizeErrorMessage(task.error_message || task.error || t('store.generateDescFailed'))
               });
             } else if (task.status === 'PENDING' || task.status === 'PROCESSING') {
               // 继续轮询
@@ -651,7 +722,7 @@ const debouncedUpdatePage = debounce(
               pageDescriptionGeneratingTasks: {},
               taskProgress: null,
               activeTaskId: null,
-              error: normalizeErrorMessage(error.message || '生成描述失败：轮询超时')
+              error: normalizeErrorMessage(error.message || t('store.generateDescTimeout'))
             });
             return;
           }
@@ -668,7 +739,7 @@ const debouncedUpdatePage = debounce(
       console.error('[生成描述] 启动任务失败:', error);
       set({ 
         pageDescriptionGeneratingTasks: {},
-        error: normalizeErrorMessage(error.message || '启动生成任务失败')
+        error: normalizeErrorMessage(error.message || t('store.startGenerationFailed'))
       });
       throw error;
     }
@@ -717,7 +788,7 @@ const debouncedUpdatePage = debounce(
         }
       }
     } catch (error: any) {
-      set({ error: normalizeErrorMessage(error.message || '生成描述失败') });
+      set({ error: normalizeErrorMessage(error.message || t('store.generateDescFailed')) });
       throw error;
     } finally {
       // 清除生成状态
@@ -770,7 +841,7 @@ const debouncedUpdatePage = debounce(
         }
       }
     } catch (error: any) {
-      set({ error: normalizeErrorMessage(error.message || '重新生成失败') });
+      set({ error: normalizeErrorMessage(error.message || t('store.regenerateFailed')) });
       throw error;
     } finally {
       // 清除生成状态
@@ -917,7 +988,7 @@ const debouncedUpdatePage = debounce(
           });
           set({ 
             pageGeneratingTasks: newTasks,
-            error: normalizeErrorMessage(task.error_message || task.error || '批量生成失败')
+            error: normalizeErrorMessage(task.error_message || task.error || t('store.batchGenerateFailed'))
           });
           // 刷新项目数据以更新页面状态
           await get().syncProject();
@@ -939,8 +1010,9 @@ const debouncedUpdatePage = debounce(
             pageIds.forEach(id => {
               if (updated[id] === taskId) {
                 const page = proj.pages.find(p => p.id === id);
-                // 后端完成后 status 从 GENERATING → COMPLETED
-                if (page && page.status !== 'GENERATING') {
+                // 只释放已完成或失败的页面，避免误释放尚未被线程池拾取的页面
+                // （未拾取的页面仍为 DESCRIPTION_GENERATED，不应提前释放）
+                if (page && (page.status === 'COMPLETED' || page.status === 'FAILED')) {
                   delete updated[id];
                   changed = true;
                 }
@@ -1017,7 +1089,7 @@ const debouncedUpdatePage = debounce(
       const { pageGeneratingTasks } = get();
       const newTasks = { ...pageGeneratingTasks };
       delete newTasks[pageId];
-      set({ pageGeneratingTasks: newTasks, error: normalizeErrorMessage(error.message || '编辑图片失败') });
+      set({ pageGeneratingTasks: newTasks, error: normalizeErrorMessage(error.message || t('store.editImageFailed')) });
       throw error;
     }
   },
@@ -1035,13 +1107,13 @@ const debouncedUpdatePage = debounce(
         response.data?.download_url || response.data?.download_url_absolute;
 
       if (!downloadUrl) {
-        throw new Error('导出链接获取失败');
+        throw new Error(t('store.exportLinkFailed'));
       }
 
       // 使用浏览器直接下载链接，避免 axios 受带宽和超时影响
       window.open(downloadUrl, '_blank');
     } catch (error: any) {
-      set({ error: error.message || '导出失败' });
+      set({ error: error.message || t('store.exportFailed') });
     } finally {
       set({ isGlobalLoading: false });
     }
@@ -1060,13 +1132,13 @@ const debouncedUpdatePage = debounce(
         response.data?.download_url || response.data?.download_url_absolute;
 
       if (!downloadUrl) {
-        throw new Error('导出链接获取失败');
+        throw new Error(t('store.exportLinkFailed'));
       }
 
       // 使用浏览器直接下载链接，避免 axios 受带宽和超时影响
       window.open(downloadUrl, '_blank');
     } catch (error: any) {
-      set({ error: error.message || '导出失败' });
+      set({ error: error.message || t('store.exportFailed') });
     } finally {
       set({ isGlobalLoading: false });
     }
@@ -1084,7 +1156,7 @@ const debouncedUpdatePage = debounce(
       devLog('[导出可编辑PPTX] 异步任务完成');
     } catch (error: any) {
       console.error('[导出可编辑PPTX] 导出失败:', error);
-      set({ error: error.message || '导出可编辑PPTX失败' });
+      set({ error: error.message || t('store.exportEditableFailed') });
     }
   },
 };});
