@@ -12,9 +12,12 @@ Support models:
 - doubao-seedream-4.5
 - ...
 """
+import re
 import tempfile
 import os
 import logging
+import requests
+from io import BytesIO
 from typing import Optional, List, Tuple
 from PIL import Image
 from .base import ImageProvider
@@ -186,7 +189,39 @@ class LazyLLMImageProvider(ImageProvider):
                 file_paths.append(temp_path)
                 temp_paths.append(temp_path)
         try:
-            response_path = self.client(prompt, lazyllm_files=file_paths, size=size_str)
+            try:
+                response_path = self.client(prompt, lazyllm_files=file_paths, size=size_str)
+            except Exception as client_err:
+                # LazyLLM may fail internally when the image URL returns application/octet-stream
+                # instead of image/*. In that case, extract the URL and download manually.
+                err_str = str(client_err)
+                if 'content type' in err_str.lower() or 'Failed to load image from' in err_str:
+                    url_match = re.search(r'(https://[^\s"\'<>]+)', err_str)
+                    if url_match:
+                        url = url_match.group(1).rstrip('.')
+                        # Only fetch from known image-hosting domains to prevent SSRF
+                        from urllib.parse import urlparse
+                        host = urlparse(url).hostname or ''
+                        allowed = host == 's3.siliconflow.cn' or host.endswith('.s3.amazonaws.com')
+                        if not allowed:
+                            logger.warning(f"[LazyLLM] Untrusted host '{host}', skipping manual download")
+                            raise
+                        logger.warning(
+                            f"[LazyLLM] Content-type mismatch, downloading image manually: {url[:80]}..."
+                        )
+                        max_size = 20 * 1024 * 1024  # 20 MB
+                        resp = requests.get(url, timeout=60, stream=True)
+                        resp.raise_for_status()
+                        content = b""
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            content += chunk
+                            if len(content) > max_size:
+                                raise ValueError(f"Image too large (>{max_size // 1024 // 1024}MB)")
+                        result = Image.open(BytesIO(content)).copy()
+                        logger.info(f"[LazyLLM] Manual download succeeded, size: {result.size}")
+                        return result
+                raise
+
             image_path = decode_query_with_filepaths(response_path) # dict
             if not image_path:
                 logger.warning('No images found in response')
