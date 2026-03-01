@@ -86,6 +86,8 @@ interface ProjectState {
   pageDescriptionGeneratingTasks: Record<string, boolean>;
   // 警告消息
   warningMessage: string | null;
+  // 流式大纲生成中
+  isOutlineStreaming: boolean;
 
   // Actions
   setCurrentProject: (project: Project | null) => void;
@@ -110,6 +112,7 @@ interface ProjectState {
 
   // 生成操作
   generateOutline: () => Promise<void>;
+  generateOutlineStream: () => Promise<{ complete: boolean } | undefined>;
   generateFromDescription: () => Promise<void>;
   generateDescriptions: () => Promise<void>;
   generatePageDescription: (pageId: string) => Promise<void>;
@@ -186,6 +189,7 @@ const debouncedUpdatePage = debounce(
   pageGeneratingTasks: {},
   pageDescriptionGeneratingTasks: {},
   warningMessage: null,
+  isOutlineStreaming: false,
 
   // Setters
   setCurrentProject: (project) => set({ currentProject: project }),
@@ -593,6 +597,91 @@ const debouncedUpdatePage = debounce(
       throw error;
     } finally {
       set({ isGlobalLoading: false });
+    }
+  },
+
+  // 流式生成大纲（SSE，逐页渲染）
+  generateOutlineStream: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    set({ isOutlineStreaming: true, error: null });
+
+    // Clear existing pages for fresh streaming display
+    set({
+      currentProject: { ...currentProject, pages: [] },
+    });
+
+    // Concurrent queue: pages are pushed by SSE callbacks, drained by a timer loop
+    const pageQueue: any[] = [];
+    let streamDone = false;
+    let doneData: { total: number; pages: any[]; complete?: boolean } | null = null;
+    const STAGGER_MS = 150;
+
+    // Start the render loop — runs concurrently with the SSE stream
+    const renderPromise = new Promise<void>((resolve) => {
+      const tick = () => {
+        if (pageQueue.length > 0) {
+          const page = pageQueue.shift()!;
+          const { currentProject: proj } = get();
+          if (proj) {
+            const tempPage: any = {
+              id: `streaming-${page.index}`,
+              order_index: page.index,
+              outline_content: { title: page.title, points: page.points },
+              part: page.part,
+              status: 'DRAFT',
+            };
+            set({
+              currentProject: { ...proj, pages: [...proj.pages, tempPage] },
+            });
+          }
+          setTimeout(tick, STAGGER_MS);
+        } else if (streamDone) {
+          resolve();
+        } else {
+          // Queue empty but stream still going — poll quickly
+          setTimeout(tick, 30);
+        }
+      };
+      tick();
+    });
+
+    try {
+      await api.generateOutlineStream(currentProject.id!, {
+        onPage: (page) => { pageQueue.push(page); },
+        onDone: (data) => { doneData = data; },
+        onError: (message) => {
+          console.error('[流式大纲] 错误:', message);
+          set({ error: normalizeErrorMessage(message), isOutlineStreaming: false });
+          streamDone = true;
+        },
+      });
+
+      streamDone = true;
+      await renderPromise;
+
+      // Replace temp pages with real persisted pages
+      if (doneData) {
+        const { currentProject: proj } = get();
+        if (proj) {
+          const normalized = normalizeProject({ ...proj, pages: doneData.pages });
+          set({ currentProject: normalized, isOutlineStreaming: false });
+        }
+        devLog('[流式大纲] 完成:', doneData.total, '个页面');
+        return { complete: doneData.complete ?? false };
+      } else {
+        set({ isOutlineStreaming: false });
+        return { complete: false };
+      }
+    } catch (error: any) {
+      console.error('[流式大纲] 错误:', error);
+      streamDone = true;
+      set({
+        error: normalizeErrorMessage(error.message || t('store.generateOutlineFailed')),
+        isOutlineStreaming: false,
+      });
+      throw error;
     }
   },
 

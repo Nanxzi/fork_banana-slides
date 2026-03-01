@@ -24,6 +24,7 @@ const outlineI18n = {
       inputPlaceholder: { idea: "输入你的 PPT 构想...", outline: "输入大纲内容...", description: "输入页面描述...", ppt_renovation: "已从 PDF 中提取内容" },
       messages: {
         outlineEmpty: "大纲不能为空", generateSuccess: "描述生成完成", generateFailed: "生成描述失败",
+        generateIncomplete: "大纲生成可能不完整，请检查后重试",
         confirmRegenerate: "已有大纲内容，重新生成将覆盖现有内容，确定继续吗？",
         confirmRegenerateTitle: "确认重新生成", refineSuccess: "大纲修改成功",
         refineFailed: "修改失败，请稍后重试", exportSuccess: "导出成功",
@@ -52,6 +53,7 @@ const outlineI18n = {
       inputPlaceholder: { idea: "Enter your PPT idea...", outline: "Enter outline content...", description: "Enter page descriptions...", ppt_renovation: "Content extracted from PDF" },
       messages: {
         outlineEmpty: "Outline cannot be empty", generateSuccess: "Descriptions generated successfully", generateFailed: "Failed to generate descriptions",
+        generateIncomplete: "Outline generation may be incomplete, please review and retry",
         confirmRegenerate: "Existing outline will be overwritten. Continue?",
         confirmRegenerateTitle: "Confirm Regenerate", refineSuccess: "Outline modified successfully",
         refineFailed: "Modification failed, please try again", exportSuccess: "Export successful",
@@ -131,14 +133,32 @@ export const OutlineEditor: React.FC = () => {
     reorderPages,
     deletePageById,
     addNewPage,
-    generateOutline,
+    generateOutlineStream,
     isGlobalLoading,
+    isOutlineStreaming,
   } = useProjectStore();
 
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [isAiRefining, setIsAiRefining] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+
+  // Skeleton fade-out: keep it mounted briefly after streaming ends
+  const [skeletonVisible, setSkeletonVisible] = useState(false);
+  const [skeletonFading, setSkeletonFading] = useState(false);
+  useEffect(() => {
+    if (isOutlineStreaming) {
+      setSkeletonVisible(true);
+      setSkeletonFading(false);
+    } else if (skeletonVisible) {
+      setSkeletonFading(true);
+      const timer = setTimeout(() => {
+        setSkeletonVisible(false);
+        setSkeletonFading(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOutlineStreaming]);
   const { confirm, ConfirmDialog } = useConfirm();
   const { show, ToastContainer } = useToast();
 
@@ -256,30 +276,29 @@ export const OutlineEditor: React.FC = () => {
   const handleGenerateOutline = async () => {
     if (!currentProject) return;
 
+    const doGenerate = async () => {
+      try {
+        const result = await generateOutlineStream();
+        if (result && !result.complete) {
+          show({ message: t('outline.messages.generateIncomplete'), type: 'warning' });
+        }
+      } catch (error: any) {
+        console.error('生成大纲失败:', error);
+        const message = error.friendlyMessage || error.message || t('outline.messages.generateFailed');
+        show({ message, type: 'error' });
+      }
+    };
+
     if (currentProject.pages.length > 0) {
       confirm(
         t('outline.messages.confirmRegenerate'),
-        async () => {
-          try {
-            await generateOutline();
-          } catch (error: any) {
-            console.error('生成大纲失败:', error);
-            const message = error.friendlyMessage || error.message || t('outline.messages.generateFailed');
-            show({ message, type: 'error' });
-          }
-        },
+        doGenerate,
         { title: t('outline.messages.confirmRegenerateTitle'), variant: 'warning' }
       );
       return;
     }
 
-    try {
-      await generateOutline();
-    } catch (error: any) {
-      console.error('生成大纲失败:', error);
-      const message = error.friendlyMessage || error.message || t('outline.messages.generateFailed');
-      show({ message, type: 'error' });
-    }
+    await doGenerate();
   };
 
   const handleAiRefineOutline = useCallback(async (requirement: string, previousRequirements: string[]) => {
@@ -341,7 +360,7 @@ export const OutlineEditor: React.FC = () => {
     return <Loading fullscreen message={t('outline.messages.loadingProject')} />;
   }
 
-  if (isGlobalLoading) {
+  if (isGlobalLoading && !isOutlineStreaming) {
     return <Loading fullscreen message={t('outline.messages.generatingOutline')} />;
   }
 
@@ -440,10 +459,11 @@ export const OutlineEditor: React.FC = () => {
             >
               {t('outline.addPage')}
             </Button>
-            {currentProject.pages.length === 0 ? (
+            {currentProject.pages.length === 0 && !isOutlineStreaming ? (
               <Button
                 variant="secondary"
                 onClick={handleGenerateOutline}
+                disabled={isOutlineStreaming}
                 className="flex-1 sm:flex-initial text-sm md:text-base"
               >
                 {currentProject.creation_type === 'outline' ? t('outline.parseOutline') : t('outline.autoGenerate')}
@@ -452,9 +472,12 @@ export const OutlineEditor: React.FC = () => {
               <Button
                 variant="secondary"
                 onClick={handleGenerateOutline}
+                disabled={isOutlineStreaming}
                 className="flex-1 sm:flex-initial text-sm md:text-base"
               >
-                {currentProject.creation_type === 'outline' ? t('outline.reParseOutline') : t('outline.reGenerate')}
+                {isOutlineStreaming
+                  ? t('outline.generating')
+                  : currentProject.creation_type === 'outline' ? t('outline.reParseOutline') : t('outline.reGenerate')}
               </Button>
             )}
             <Button
@@ -585,7 +608,7 @@ export const OutlineEditor: React.FC = () => {
 
         {/* 右侧：大纲列表 */}
         <div className="flex-1 min-w-0">
-          {currentProject.pages.length === 0 ? (
+          {currentProject.pages.length === 0 && !isOutlineStreaming ? (
             <div className="text-center py-12 md:py-20">
               <div className="flex justify-center mb-4">
                 <FileText size={48} className="text-gray-300" />
@@ -609,19 +632,50 @@ export const OutlineEditor: React.FC = () => {
               >
                 <div className="space-y-3 md:space-y-4">
                   {currentProject.pages.map((page, index) => (
-                    <SortableCard
+                    <div
                       key={page.id || `page-${index}`}
-                      page={page}
-                      index={index}
-                      projectId={projectId}
-                      showToast={show}
-                      onUpdate={(data) => page.id && updatePageLocal(page.id, data)}
-                      onDelete={() => page.id && deletePageById(page.id)}
-                      onClick={() => setSelectedPageId(page.id || null)}
-                      isSelected={selectedPageId === page.id}
-                      isAiRefining={isAiRefining}
-                    />
+                      className={isOutlineStreaming ? 'animate-slide-in-up' : ''}
+                      style={isOutlineStreaming ? { animationDelay: `${index * 60}ms` } : undefined}
+                    >
+                      <SortableCard
+                        page={page}
+                        index={index}
+                        projectId={projectId}
+                        showToast={show}
+                        onUpdate={(data) => page.id && updatePageLocal(page.id, data)}
+                        onDelete={() => page.id && deletePageById(page.id)}
+                        onClick={() => setSelectedPageId(page.id || null)}
+                        isSelected={selectedPageId === page.id}
+                        isAiRefining={isAiRefining}
+                      />
+                    </div>
                   ))}
+                  {skeletonVisible && (
+                    <div
+                      className="transition-opacity duration-1000"
+                      style={{ opacity: skeletonFading ? 0 : 1 }}
+                    >
+                      <div className="animate-pulse">
+                        <div className="bg-white dark:bg-background-secondary rounded-xl shadow-sm border border-gray-100 dark:border-border-primary p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded mt-1" />
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded" />
+                              <div className="h-4 w-16 bg-banana-100 dark:bg-banana-900/30 rounded" />
+                            </div>
+                            <div className="h-5 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                            <div className="space-y-2">
+                              <div className="h-3.5 w-full bg-gray-100 dark:bg-gray-800 rounded" />
+                              <div className="h-3.5 w-4/5 bg-gray-100 dark:bg-gray-800 rounded" />
+                              <div className="h-3.5 w-3/5 bg-gray-100 dark:bg-gray-800 rounded" />
+                            </div>
+                          </div>
+                        </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </SortableContext>
             </DndContext>

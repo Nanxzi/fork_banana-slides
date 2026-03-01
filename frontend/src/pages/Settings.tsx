@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Key, Image, Zap, Save, RotateCcw, Globe, FileText, Brain, ArrowUp } from 'lucide-react';
+import { Home, Key, Image, Zap, Save, RotateCcw, Globe, FileText, Brain, ArrowUp, HelpCircle } from 'lucide-react';
 import { useT } from '@/hooks/useT';
 
 // 组件内翻译
@@ -66,8 +66,14 @@ const settingsI18n = {
         perModelApiKeyDesc: "留空则保持当前设置不变",
         perModelApiKeySet: "已设置（长度: {{length}}）",
       },
-      apiKeyTip: { before: "推荐使用 ", after: " 中转，支持 Gemini 和 OpenAI 双格式，高并发文生图稳定可靠。" },
-      apiKeyApplyLink: "，请点击此处申请密钥",
+      apiKeyHelp: {
+        title: "如何获取 API 密钥",
+        step1: "前往 {{link}} 注册账号",
+        step2: "点击顶栏「充值」，根据需要充值一定的额度",
+        step3: "点击顶栏「密钥」",
+        step4: "点击「创建 key」生成新的 API Key",
+      },
+      apiKeyTip: { before: "若需快速配置或稳定高并发生图，可选择 ", after: "" },
       serviceTest: {
         title: "服务测试", description: "提前验证关键服务配置是否可用，避免使用期间异常。",
         tip: "提示：图像生成和 MinerU 测试可能需要 30-60 秒，请耐心等待。",
@@ -158,8 +164,14 @@ const settingsI18n = {
         perModelApiKeyDesc: "Leave empty to keep current setting",
         perModelApiKeySet: "Set (length: {{length}})",
       },
-      apiKeyTip: { before: "Recommended: ", after: " proxy — supports both Gemini and OpenAI formats with stable high-concurrency image generation." },
-      apiKeyApplyLink: ", click here to apply",
+      apiKeyHelp: {
+        title: "How to get an API key",
+        step1: "Register at {{link}}",
+        step2: "Click \"Recharge\" in the top navigation bar and add credits as needed",
+        step3: "Click \"Keys\" in the top navigation bar",
+        step4: "Click \"Create Key\" to generate a new API Key",
+      },
+      apiKeyTip: { before: "For quick setup or stable high-concurrency image generation, get an API key from ", after: "" },
       serviceTest: {
         title: "Service Test", description: "Verify key service configurations before use to avoid issues.",
         tip: "Tip: Image generation and MinerU tests may take 30-60 seconds, please be patient.",
@@ -1077,10 +1089,32 @@ export const Settings: React.FC = () => {
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
             <p className="text-sm text-gray-700 dark:text-foreground-secondary">
               {t('settings.apiKeyTip.before')}
-              <a href="https://aihubmix.com/?aff=17EC" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">AIHubmix</a>
-              {t('settings.apiKeyTip.after')}
-              <a href="https://aihubmix.com/token?aff=17EC" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">{t('settings.apiKeyApplyLink')}</a>
+              <a href={['https://', 'aihubmix', '.com/?', 'aff=17EC'].join('')} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">AIHubmix 申请 API key</a>
             </p>
+          </div>
+
+          {/* API Key 获取指南 */}
+          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+            <p className="text-sm font-medium text-gray-800 dark:text-foreground-primary flex items-center gap-1.5 mb-2">
+              <HelpCircle size={15} className="text-blue-500" />
+              {t('settings.apiKeyHelp.title')}
+            </p>
+            <ol className="text-sm text-gray-700 dark:text-foreground-secondary space-y-1 list-decimal list-inside ml-1">
+              <li>
+                {t('settings.apiKeyHelp.step1', { link: '{{link}}' }).split('{{link}}')[0]}
+                <a
+                  href={['https://', 'aihubmix', '.com/?', 'aff=17EC'].join('')}
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline font-medium"
+                >
+                  点击此处访问 AIHubmix →
+                </a>
+                {t('settings.apiKeyHelp.step1', { link: '{{link}}' }).split('{{link}}')[1]}
+              </li>
+              <li>{t('settings.apiKeyHelp.step2')}</li>
+              <li>{t('settings.apiKeyHelp.step3')}</li>
+              <li>{t('settings.apiKeyHelp.step4')}</li>
+            </ol>
           </div>
         </div>
 

@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response, stream_with_context
 from sqlalchemy import desc
 from utils.validators import normalize_aspect_ratio
 from sqlalchemy.orm import joinedload
@@ -498,6 +498,115 @@ def generate_outline(project_id):
         db.session.rollback()
         logger.error(f"generate_outline failed: {str(e)}", exc_info=True)
         return error_response('AI_SERVICE_ERROR', str(e), 503)
+
+
+@project_bp.route('/<project_id>/generate/outline/stream', methods=['POST'])
+def generate_outline_stream(project_id):
+    """
+    POST /api/projects/{project_id}/generate/outline/stream - Stream outline generation via SSE
+
+    Streams pages one-by-one as they are generated. Each page is sent as an SSE event.
+    After all pages are streamed, saves them to the database.
+
+    SSE events:
+      event: page    — a single page object {index, title, points, part?}
+      event: done    — generation complete {total, pages: [...with ids...]}
+      event: error   — error occurred {message}
+    """
+    # Validate project exists before entering the generator
+    project = Project.query.get(project_id)
+    if not project:
+        return not_found('Project')
+
+    data = request.get_json() or {}
+    language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
+
+    # Capture app reference for use inside the generator (which runs outside request context)
+    app = current_app._get_current_object()
+
+    def sse_generate():
+        with app.app_context():
+            try:
+                # Re-fetch project inside app context to attach to this session
+                proj = db.session.get(Project, project_id)
+                ai_service = get_ai_service()
+                reference_files_content = _get_project_reference_files_content(project_id)
+
+                # Validate input based on creation type
+                if proj.creation_type == 'outline' and not proj.outline_text:
+                    yield _sse_event('error', {'message': 'outline_text is required'})
+                    return
+                if proj.creation_type == 'descriptions' and not proj.description_text:
+                    yield _sse_event('error', {'message': 'description_text is required'})
+                    return
+
+                # Update idea_prompt if provided
+                if proj.creation_type not in ('outline', 'descriptions'):
+                    idea_prompt = data.get('idea_prompt') or proj.idea_prompt
+                    if not idea_prompt:
+                        yield _sse_event('error', {'message': 'idea_prompt is required'})
+                        return
+                    proj.idea_prompt = idea_prompt
+
+                project_context = ProjectContext(proj, reference_files_content)
+
+                # Stream pages from AI
+                streamed_pages = []
+                stream_complete = False
+                for page_data in ai_service.generate_outline_stream(project_context, language=language):
+                    # Check for completion sentinel
+                    if '__stream_complete__' in page_data:
+                        stream_complete = page_data['__stream_complete__']
+                        continue
+                    i = len(streamed_pages)
+                    streamed_pages.append(page_data)
+                    yield _sse_event('page', {
+                        'index': i,
+                        'title': page_data.get('title', ''),
+                        'points': page_data.get('points', []),
+                        'part': page_data.get('part'),
+                    })
+
+                # Save all pages to database
+                pages_list = _smart_merge_pages(project_id, streamed_pages)
+
+                if all(p.description_content for p in pages_list) and pages_list:
+                    proj.status = 'DESCRIPTIONS_GENERATED'
+                else:
+                    proj.status = 'OUTLINE_GENERATED'
+                proj.updated_at = datetime.utcnow()
+                db.session.commit()
+
+                logger.info(f"流式大纲生成完成: 项目 {project_id}, {len(pages_list)} 个页面")
+
+                yield _sse_event('done', {
+                    'total': len(pages_list),
+                    'pages': [p.to_dict() for p in pages_list],
+                    'complete': stream_complete,
+                })
+
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception as rollback_exc:
+                    logger.warning(f"Session rollback failed: {rollback_exc}", exc_info=True)
+                logger.error(f"generate_outline_stream failed: {str(e)}", exc_info=True)
+                yield _sse_event('error', {'message': '生成过程中发生内部错误'})
+
+    return Response(
+        stream_with_context(sse_generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache, no-transform',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        },
+    )
+
+
+def _sse_event(event: str, data: dict) -> str:
+    """Format a single SSE event."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 @project_bp.route('/<project_id>/generate/from-description', methods=['POST'])

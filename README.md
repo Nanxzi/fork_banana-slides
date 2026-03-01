@@ -179,15 +179,26 @@
 
 ## 📦 使用方法
 
-### 使用 Docker Compose🐳（推荐）
-这是最简单的部署方式，可以一键启动前后端服务。
+### （新）使用应用模板一键部署
+这是最简单的方式，无需安装docker或下载项目，创建后可直接进入应用
+
+
+1. 通过雨云一键部署和启动本应用 (新用户有15天免费使用+首充双倍政策)
+
+[![通过雨云一键部署](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-cn.svg)](https://app.rainyun.com/apps/rca/store/7549/anionex_)
+
+2. 敬请期待
+
+
+### 使用 Docker Compose🐳
+通过docker compose快速启动前后端服务。
 
 <details>
-  <summary>📒Windows用户说明</summary>
+  <summary>📒 Windows/Mac用户说明</summary>
 
-如果你使用 Windows, 请先安装 Windows Docker Desktop，检查系统托盘中的 Docker 图标，确保 Docker 正在运行，然后使用相同的步骤操作。
+如果你使用 **Windows 或 macOS**，请先安装 **Docker Desktop**，并确保 Docker 正在运行（Windows 可检查系统托盘图标；macOS 可检查菜单栏图标），然后按文档中的相同步骤操作。
 
-> **提示**：如果遇到问题，确保在 Docker Desktop 设置中启用了 WSL 2 后端（推荐），并确保端口 3000 和 5000 未被占用。
+> **提示**：如果遇到问题，Windows 用户请在 Docker Desktop 设置中启用 **WSL 2 后端**（推荐）；同时确保端口 **3000** 和 **5000** 未被占用。
 
 </details>
 
@@ -326,7 +337,14 @@ docker compose down
 
 6. **更新项目**
 
-拉取最新代码并重新构建和启动服务：
+**使用预构建镜像（docker-compose.prod.yml）**
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**使用本地构建（docker-compose.yml）**
 
 ```bash
 git pull
@@ -612,6 +630,8 @@ banana-slides/
 [Pull Request](https://github.com/Anionex/banana-slides/pulls)
 为本项目贡献力量！
 
+> **重要：** 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## 📄 许可证
 
 本项目采用 **GNU Affero General Public License v3.0（AGPL-3.0）** 开源，
@@ -646,14 +666,6 @@ banana-slides/
   <summary>感谢<a href="https://api.chatfire.site/login?inviteCode=A15CD6A0">AI火宝</a>对本项目的赞助</summary>
   “聚合全球多模型API服务商。更低价格享受安全、稳定且72小时链接全球最新模型的服务。”
 </details>
-
-
-<a href="https://www.rainyun.com/anionex_">
- <img width="150" alt="image" src="https://github.com/user-attachments/assets/9c1ab6d5-2b67-42ad-b4c4-d1c172a0068a" />
-
-</a>
-
-感谢雨云为本项目赞助云服务器，支持项目开发部署~
  
 </div>
 

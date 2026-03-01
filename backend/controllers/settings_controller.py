@@ -388,6 +388,21 @@ def reset_settings():
         )
 
 
+@settings_bp.route("/active-config", methods=["GET"], strict_slashes=False)
+def get_active_config():
+    """
+    GET /api/settings/active-config - Return current app.config values for AI settings.
+    Useful for verifying that _sync_settings_to_config correctly restored .env defaults.
+    """
+    return success_response({
+        "ai_provider_format": current_app.config.get("AI_PROVIDER_FORMAT"),
+        "text_model": current_app.config.get("TEXT_MODEL"),
+        "image_model": current_app.config.get("IMAGE_MODEL"),
+        "output_language": current_app.config.get("OUTPUT_LANGUAGE"),
+        "image_caption_model": current_app.config.get("IMAGE_CAPTION_MODEL"),
+    })
+
+
 @settings_bp.route("/verify", methods=["POST"], strict_slashes=False)
 def verify_api_key():
     """
@@ -494,13 +509,13 @@ def _sync_settings_to_config(settings: Settings):
     # Track if AI-related settings changed
     ai_config_changed = False
     
-    # Sync AI provider format (always sync, has default value)
-    if settings.ai_provider_format:
-        old_format = current_app.config.get("AI_PROVIDER_FORMAT")
-        if old_format != settings.ai_provider_format:
-            ai_config_changed = True
-            logger.info(f"AI provider format changed: {old_format} -> {settings.ai_provider_format}")
-        current_app.config["AI_PROVIDER_FORMAT"] = settings.ai_provider_format
+    # Sync AI provider format (always sync, fall back to .env default when NULL)
+    new_format = settings.ai_provider_format or Config.AI_PROVIDER_FORMAT
+    old_format = current_app.config.get("AI_PROVIDER_FORMAT")
+    if old_format != new_format:
+        ai_config_changed = True
+        logger.info(f"AI provider format changed: {old_format} -> {new_format}")
+    current_app.config["AI_PROVIDER_FORMAT"] = new_format
     
     # Sync API configuration (sync to both GOOGLE_* and OPENAI_* to ensure DB settings override env vars)
     if settings.api_base_url is not None:
@@ -539,19 +554,19 @@ def _sync_settings_to_config(settings: Settings):
         current_app.config["OPENAI_API_KEY"] = env_key_openai
     
     # Check model changes
-    if settings.text_model is not None:
-        old_model = current_app.config.get("TEXT_MODEL")
-        if old_model != settings.text_model:
-            ai_config_changed = True
-            logger.info(f"Text model changed: {old_model} -> {settings.text_model}")
-        current_app.config["TEXT_MODEL"] = settings.text_model
-    
-    if settings.image_model is not None:
-        old_model = current_app.config.get("IMAGE_MODEL")
-        if old_model != settings.image_model:
-            ai_config_changed = True
-            logger.info(f"Image model changed: {old_model} -> {settings.image_model}")
-        current_app.config["IMAGE_MODEL"] = settings.image_model
+    new_text_model = settings.text_model or Config.TEXT_MODEL
+    old_model = current_app.config.get("TEXT_MODEL")
+    if old_model != new_text_model:
+        ai_config_changed = True
+        logger.info(f"Text model changed: {old_model} -> {new_text_model}")
+    current_app.config["TEXT_MODEL"] = new_text_model
+
+    new_image_model = settings.image_model or Config.IMAGE_MODEL
+    old_model = current_app.config.get("IMAGE_MODEL")
+    if old_model != new_image_model:
+        ai_config_changed = True
+        logger.info(f"Image model changed: {old_model} -> {new_image_model}")
+    current_app.config["IMAGE_MODEL"] = new_image_model
 
     # Sync image generation settings (fall back to Config when NULL)
     current_app.config["DEFAULT_RESOLUTION"] = settings.image_resolution or Config.DEFAULT_RESOLUTION
@@ -562,19 +577,11 @@ def _sync_settings_to_config(settings: Settings):
     current_app.config["MAX_IMAGE_WORKERS"] = settings.max_image_workers or Config.MAX_IMAGE_WORKERS
     logger.info(f"Updated worker settings: desc={current_app.config['MAX_DESCRIPTION_WORKERS']}, img={current_app.config['MAX_IMAGE_WORKERS']}")
 
-    # Sync MinerU settings (optional, fall back to Config defaults if None)
-    if settings.mineru_api_base:
-        current_app.config["MINERU_API_BASE"] = settings.mineru_api_base
-        logger.info(f"Updated MINERU_API_BASE to: {settings.mineru_api_base}")
-    if settings.mineru_token is not None:
-        current_app.config["MINERU_TOKEN"] = settings.mineru_token
-        logger.info("Updated MINERU_TOKEN from settings")
-    if settings.image_caption_model:
-        current_app.config["IMAGE_CAPTION_MODEL"] = settings.image_caption_model
-        logger.info(f"Updated IMAGE_CAPTION_MODEL to: {settings.image_caption_model}")
-    if settings.output_language:
-        current_app.config["OUTPUT_LANGUAGE"] = settings.output_language
-        logger.info(f"Updated OUTPUT_LANGUAGE to: {settings.output_language}")
+    # Sync MinerU settings (fall back to Config defaults when NULL)
+    current_app.config["MINERU_API_BASE"] = settings.mineru_api_base or Config.MINERU_API_BASE
+    current_app.config["MINERU_TOKEN"] = settings.mineru_token if settings.mineru_token is not None else Config.MINERU_TOKEN
+    current_app.config["IMAGE_CAPTION_MODEL"] = settings.image_caption_model or Config.IMAGE_CAPTION_MODEL
+    current_app.config["OUTPUT_LANGUAGE"] = settings.output_language or Config.OUTPUT_LANGUAGE
     
     # Sync reasoning mode settings (separate for text and image)
     # Check if reasoning configuration changed (requires AIService cache clear)
@@ -595,10 +602,8 @@ def _sync_settings_to_config(settings: Settings):
     current_app.config["ENABLE_IMAGE_REASONING"] = settings.enable_image_reasoning
     current_app.config["IMAGE_THINKING_BUDGET"] = settings.image_thinking_budget
     
-    # Sync Baidu OCR settings
-    if settings.baidu_api_key:
-        current_app.config["BAIDU_API_KEY"] = settings.baidu_api_key
-        logger.info("Updated BAIDU_API_KEY from settings")
+    # Sync Baidu OCR settings (fall back to Config default when NULL)
+    current_app.config["BAIDU_API_KEY"] = settings.baidu_api_key or Config.BAIDU_API_KEY
 
     # Sync per-model provider source settings
     for model_type, source_attr in [('TEXT', 'text_model_source'), ('IMAGE', 'image_model_source'), ('IMAGE_CAPTION', 'image_caption_model_source')]:
