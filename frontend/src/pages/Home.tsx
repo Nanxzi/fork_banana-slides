@@ -28,7 +28,7 @@ const homeI18n = {
     },
     home: {
       title: '蕉幻',
-      subtitle: 'Vibe your PPT like vibing code',
+      subtitle: 'Vibe your slides like vibe coding',
       tagline: '基于 nano banana pro🍌 的原生 AI PPT 生成器',
       features: {
         oneClick: '一句话生成 PPT',
@@ -104,7 +104,7 @@ const homeI18n = {
     },
     home: {
       title: 'Banana Slides',
-      subtitle: 'Vibe your PPT like vibing code',
+      subtitle: 'Vibe your slides like vibe coding',
       tagline: 'AI-native PPT generator powered by nano banana pro🍌',
       features: {
         oneClick: 'One-click PPT generation',

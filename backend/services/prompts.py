@@ -106,6 +106,13 @@ def _format_reference_files_xml(reference_files_content: Optional[List[Dict[str,
     return '\n'.join(xml_parts)
 
 
+def _format_requirements(requirements: str) -> str:
+    """格式化用户提供的生成要求，返回可直接拼接到 prompt 中的文本段"""
+    if requirements and requirements.strip():
+        return f"## Requirements\n{requirements.strip()}\n\n"
+    return ""
+
+
 def get_outline_generation_prompt(project_context: 'ProjectContext', language: str = None) -> str:
     """
     生成 PPT 大纲的 prompt
@@ -149,10 +156,11 @@ You can organize the content in two ways:
 Choose the format that best fits the content. Use parts when the PPT has clear major sections.
 Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information.
 
-The user's request: {idea_prompt}. Now generate the outline, don't include any other text.
+The user's request: {idea_prompt}.
+{_format_requirements(project_context.outline_requirements)}Now generate the outline, don't include any other text.
 {get_language_instruction(language)}
 """)
-    
+
     final_prompt = files_xml + prompt
     logger.debug(f"[get_outline_generation_prompt] Final prompt:\n{final_prompt}")
     return final_prompt
@@ -203,7 +211,8 @@ Constraints:
 - Choose the format that best fits the content. Use parts when the PPT has clear major sections. 
 - Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information. 
 
-The user's request: {idea_prompt}. Now generate the outline, strictly follow the format provided above, don't include any other text. Output `<!-- END -->` on the last line when finished.
+The user's request: {idea_prompt}.
+{_format_requirements(project_context.outline_requirements)}Now generate the outline, strictly follow the format provided above, don't include any other text. Output `<!-- END -->` on the last line when finished.
 {get_language_instruction(language)}
 """)
 
@@ -334,26 +343,28 @@ Important rules:
 Now parse the outline text above into the structured format. Return only the JSON, don't include any other text.
 {get_language_instruction(language)}
 """)
-    
+
     final_prompt = files_xml + prompt
     logger.debug(f"[get_outline_parsing_prompt] Final prompt:\n{final_prompt}")
     return final_prompt
 
 
-def get_page_description_prompt(project_context: 'ProjectContext', outline: list, 
-                                page_outline: dict, page_index: int, 
+def get_page_description_prompt(project_context: 'ProjectContext', outline: list,
+                                page_outline: dict, page_index: int,
                                 part_info: str = "",
-                                language: str = None) -> str:
+                                language: str = None,
+                                detail_level: str = "default") -> str:
     """
     生成单个页面描述的 prompt
-    
+
     Args:
         project_context: 项目上下文对象，包含所有原始信息
         outline: 完整大纲
         page_outline: 当前页面的大纲
         page_index: 页面编号（从1开始）
         part_info: 可选的章节信息
-        
+        detail_level: 描述详细程度 (concise/default/detailed)
+
     Returns:
         格式化后的 prompt 字符串
     """
@@ -368,38 +379,44 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
     else:
         original_input = project_context.idea_prompt or ""
     
+    # 根据 detail_level 生成不同的详细程度要求和示例
+    # concise=演示型  default=标准型  detailed=阅读型(Slidedoc)
+    detail_level_specs = {
+        'concise': 
+            '文字极致地压缩和精简',
+        'default': 
+            '清晰明了，每条要点控制在15-20字以内, 避免冗长的句子和复杂的表述',
+        'detailed': 
+            '忠于原文的基础上做到内容详实，逻辑清晰。',
+    }
+    
+    
     prompt = (f"""\
 我们正在为PPT的每一页生成内容描述。
 用户的原始需求是：\n{original_input}\n
 我们已经有了完整的大纲：\n{outline}\n{part_info}
-现在请为第 {page_index} 页生成描述：
+{_format_requirements(project_context.description_requirements)}现在请为第 {page_index} 页生成描述：
 {page_outline}
 {"**除非特殊要求，第一页的内容需要保持极简，只放标题副标题以及演讲人等（输出到标题后）, 不添加任何素材。**" if page_index == 1 else ""}
 
-【重要提示】生成的"页面文字"部分会直接渲染到PPT页面上，因此请务必注意：
-1. 文字内容要简洁精炼，每条要点控制在15-25字以内
-2. 条理清晰，使用列表形式组织内容
-3. 避免冗长的句子和复杂的表述
-4. 确保内容可读性强，适合在演示时展示
-5. 不要包含任何额外的说明性文字或注释
+## 重要提示
+生成的"页面文字"部分会直接渲染到PPT页面上，因此请务必不要包含任何额外的说明性文字或注释。
 
-输出格式示例：
-页面标题：原始社会：与自然共生
-{"副标题：人类祖先和自然的相处之道" if page_index == 1 else ""}
+## 输出格式
+页面标题：[实际页面标题]
+{"副标题：[实际副标题]" if page_index == 1 else ""}
 
 页面文字：
-- 狩猎采集文明：人类活动规模小，对环境影响有限
-- 依赖性强：生活完全依赖自然资源的直接供给
-- 适应而非改造：通过观察学习自然，发展生存技能
-- 影响特点：局部、短期、低强度，生态可自我恢复
+[此处输出页面文字, 细致程度要求：{detail_level_specs[detail_level]}\n\n, 可包含latex公式、表格等内容, 不要重复添加]
 
-其他页面素材（如果文件中存在请积极添加，包括markdown图片链接、公式、表格等）
+图片素材:
+[如果文件中存在图片请积极添加； 否则忽略图片素材字段]
 
-【关于图片】如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请将这些图片以markdown格式输出，例如：![图片描述](/files/mineru/xxx/image.png)。这些图片会被包含在PPT页面中。
-
+## 关于图片
+如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请将这些图片以markdown格式输出，例如：![图片描述](/files/mineru/xxx/image.png)。这些图片会被包含在PPT页面中。
 {get_language_instruction(language)}
 """)
-    
+
     final_prompt = files_xml + prompt
     logger.debug(f"[get_page_description_prompt] Final prompt:\n{final_prompt}")
     return final_prompt
@@ -560,7 +577,7 @@ Important rules:
 Now extract the outline structure from the description text above. Return only the JSON, don't include any other text.
 {get_language_instruction(language)}
 """)
-    
+
     final_prompt = files_xml + prompt
     logger.debug(f"[get_description_to_outline_prompt] Final prompt:\n{final_prompt}")
     return final_prompt

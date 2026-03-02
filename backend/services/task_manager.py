@@ -139,16 +139,17 @@ def save_image_with_version(image, project_id: str, page_id: str, file_service,
     return image_path, next_version
 
 
-def generate_descriptions_task(task_id: str, project_id: str, ai_service, 
-                               project_context, outline: List[Dict], 
+def generate_descriptions_task(task_id: str, project_id: str, ai_service,
+                               project_context, outline: List[Dict],
                                max_workers: int = 5, app=None,
-                               language: str = None):
+                               language: str = None,
+                               detail_level: str = 'default'):
     """
     Background task for generating page descriptions
     Based on demo.py gen_desc() with parallel processing
-    
+
     Note: app instance MUST be passed from the request context
-    
+
     Args:
         task_id: Task ID
         project_id: Project ID
@@ -158,6 +159,7 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
         max_workers: Maximum number of parallel workers
         app: Flask app instance
         language: Output language (zh, en, ja, auto)
+        detail_level: Description detail level (concise/default/detailed)
     """
     if app is None:
         raise ValueError("Flask app instance must be provided")
@@ -184,6 +186,10 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
             if len(pages) != len(pages_data):
                 raise ValueError("Page count mismatch")
             
+            # Mark all pages as GENERATING_DESCRIPTION before starting
+            for page in pages:
+                page.status = 'GENERATING_DESCRIPTION'
+
             # Initialize progress
             task.set_progress({
                 "total": len(pages),
@@ -191,7 +197,7 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
                 "failed": 0
             })
             db.session.commit()
-            
+
             # Generate descriptions in parallel
             completed = 0
             failed = 0
@@ -210,7 +216,8 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
                         
                         desc_text = ai_service.generate_page_description(
                             project_context, outline, page_outline, page_index,
-                            language=language
+                            language=language,
+                            detail_level=detail_level
                         )
                         
                         # Parse description into structured format

@@ -5,28 +5,60 @@ description: "Frequently asked questions"
 
 ## Generated text is garbled or blurry
 
-- Switch to a higher output resolution (2K recommended over 1K). Note: OpenAI format may not support higher resolutions — use Gemini format instead.
-- Include the specific text content you want rendered in your page descriptions.
+- Check if you're on 1K low-resolution mode. Switch to 2K or 4K in **Project Settings → Global Settings** — the difference in text clarity is significant. Note: some OpenAI-format proxy services don't support higher resolutions; use Gemini format instead.
+- Include the specific text you want rendered in the page description — AI renders it more accurately when given explicit content.
 
 ## Editable PPTX export has overlapping text or missing styles
 
-This is usually an API configuration issue. Make sure `BAIDU_API_KEY` is set correctly. See [Configuration](/configuration#baidu-api-key) and [Issue #121](https://github.com/Anionex/banana-slides/issues/121) for troubleshooting.
+Usually an API configuration issue. Make sure `BAIDU_API_KEY` is set correctly — see [Configuration](/configuration#baidu-api-key).
+
+You can also try adjusting the text extraction method in **Project Settings → Export Settings** (OCR / Vision model / Hybrid). Different methods perform differently depending on the layout.
+
+## The regular PPTX export has text I can't edit in PowerPoint
+
+Regular PPTX embeds slides as images — text inside images is not editable. Use **Export Editable PPTX (Beta)** if you need editable text.
 
 ## Does the free Gemini API tier work?
 
-The free tier supports text generation only. Image generation requires a paid tier.
+Text generation (outlines, descriptions) works on the free tier, but image generation requires a paid tier.
 
-## Getting 503 errors or Retry Errors
+## Getting 503 errors or repeated retry failures
 
-Check the backend logs for detailed error messages:
+Usually caused by incorrect model configuration. Run the **Service Test** at the bottom of the Settings page first to pinpoint the issue.
 
+Check backend logs for details:
 ```bash
 docker logs --tail 200 banana-slides-backend
 ```
 
-This is typically caused by incorrect model configuration.
-
 ## Environment variable changes not taking effect
 
-- If running via Docker, restart the container after editing `.env`.
-- If you previously configured settings via the web UI Settings page, those values override `.env`. Use "Reset to Default" in Settings to revert.
+- Docker deployments require a container restart after editing `.env`.
+- If you've configured settings via the web UI, those database values override `.env`. Click **Reset to Default** in Settings to clear them.
+
+## PPT Renovation didn't parse correctly
+
+- Upload PDF instead of PPTX for more stable results. Direct PPTX upload requires server-side LibreOffice conversion, which may fail due to missing fonts (Arial, Calibri, etc.).
+- Docker users who need PPTX support inside the container:
+  ```bash
+  docker exec -it banana-slides-backend bash -c "apt-get update && apt-get install -y libreoffice-impress"
+  ```
+
+## How do I change the aspect ratio?
+
+Select a ratio on the home page before creating, or change it in **Project Settings** on the preview page. Images must be regenerated after changing the ratio.
+
+Note: some image generation models don't support certain aspect ratios. If generation fails, try switching to 16:9.
+
+## Generation is slow
+
+- Increase **Max description workers** and **Max image workers** in Settings to speed up parallel generation.
+- If you're on a free API tier, rate limits may apply. Consider upgrading or using a relay service like [AIHubMix](https://aihubmix.com/?aff=17EC).
+
+## How do I regenerate just one page?
+
+On the Slide Preview page, click the edit icon (pencil) on that slide, update the description or add an edit instruction, then click **Generate Image**. You can also use multi-select to batch regenerate several pages.
+
+## Where is the AI input bar for editing outlines and descriptions?
+
+It's in the **top navigation bar** of the Outline Editor and Description Editor — fill in your instruction and press **Ctrl+Enter**. Example: `Add a case study section after page 3`.

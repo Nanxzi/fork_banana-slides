@@ -1,56 +1,92 @@
 ---
 title: "Quick Start"
-description: "Get Banana Slides running in minutes"
+description: "Try the demo or deploy Banana Slides locally"
 ---
 
-## Docker Compose (Recommended)
+## Online Demo
 
-<Steps>
-  <Step title="Clone the repository">
+No installation needed — try it instantly: [bananaslides.online](https://bananaslides.online/)
+
+---
+
+## Self-Hosting
+
+### Step 1: Install Docker
+
+<Tabs>
+  <Tab title="Windows / macOS">
+    Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/). After installation, launch it and confirm the Docker icon appears in the system tray (Windows) or menu bar (macOS).
+  </Tab>
+  <Tab title="Linux">
     ```bash
-    git clone https://github.com/Anionex/banana-slides
-    cd banana-slides
+    curl -fsSL https://get.docker.com | sh
     ```
-  </Step>
-  <Step title="Configure environment">
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` and set your API key. See [Configuration](/configuration) for details.
-  </Step>
-  <Step title="Start services">
-    **Using pre-built images (fastest):**
-    ```bash
-    docker compose -f docker-compose.prod.yml up -d
-    ```
+  </Tab>
+</Tabs>
 
-    **Or build from source:**
-    ```bash
-    docker compose up -d
-    ```
-  </Step>
-  <Step title="Open the app">
-    - Frontend: [http://localhost:3000](http://localhost:3000)
-    - Backend API: [http://localhost:5000](http://localhost:5000)
+### Step 2: Download and Start
 
-    <Note>Ports default to 3000/5000 via `.env`. You can change them by editing `FRONTEND_PORT` and `BACKEND_PORT` in `.env`.</Note>
-  </Step>
-</Steps>
+Create a new directory, enter it, and run the following command to download the config files and start the service:
 
-## From Source
+```bash
+mkdir banana-slides && cd banana-slides && \
+curl -O https://raw.githubusercontent.com/Anionex/banana-slides/main/docker-compose.prod.yml && \
+curl -O https://raw.githubusercontent.com/Anionex/banana-slides/main/.env.example && \
+cp .env.example .env
+```
 
-### Prerequisites
+Edit the `.env` file to fill in your API key (see [Configuration](/configuration)), then start:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+<Tip>
+  [AIHubMix](https://aihubmix.com/?aff=17EC) is recommended for API keys — it supports both Gemini and OpenAI formats and handles high-concurrency image generation reliably.
+</Tip>
+
+### Step 3: Open the App
+
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
+
+<Note>
+  Default ports are 3000 (frontend) and 5000 (backend). To change them, set `FRONTEND_PORT` and `BACKEND_PORT` in `.env`.
+</Note>
+
+---
+
+## Update
+
+```bash
+docker compose -f docker-compose.prod.yml pull && \
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## View Logs
+
+```bash
+docker logs -f --tail 100 banana-slides-backend
+```
+
+---
+
+## Deploy from Source
+
+<Accordion title="Expand for source deployment steps">
+
+### Requirements
 
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) package manager
 - Node.js 16+ and npm
-- A valid AI provider API key
 
 ### Backend
 
 ```bash
+git clone https://github.com/Anionex/banana-slides
+cd banana-slides
+cp .env.example .env  # Edit .env and add your API key
 cd backend
-uv sync
 uv run alembic upgrade head && uv run python app.py
 ```
 
@@ -62,12 +98,4 @@ npm install
 npm run dev
 ```
 
-<Note>
-  The PPT Renovation feature requires [LibreOffice](https://www.libreoffice.org/) for server-side PPTX-to-PDF conversion. **We recommend converting PPTX to PDF locally before uploading** — LibreOffice may produce inaccurate results due to missing fonts (e.g., Microsoft YaHei, Calibri) and unsupported visual effects.
-
-  Docker users who still need PPTX upload support can install it inside the container:
-  ```bash
-  docker exec -it banana-slides-backend bash -c "apt-get update && apt-get install -y libreoffice-impress && rm -rf /var/lib/apt/lists/*"
-  ```
-  This must be re-done after container recreation.
-</Note>
+</Accordion>

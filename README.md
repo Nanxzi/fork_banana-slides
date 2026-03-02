@@ -1,44 +1,45 @@
 <div align="center">
 
-<img width="256" src="https://github.com/user-attachments/assets/6f9e4cf9-912d-4faa-9d37-54fb676f547e">
+ 
+<img width="1376" height="450" alt="final1" src="https://github.com/user-attachments/assets/0af7df7e-21e5-45da-809b-fa7e51a3f108" />
+<hr>
+<a href="https://trendshift.io/repositories/22056" target="_blank">
+  <img src="https://trendshift.io/api/badge/repositories/22056" alt="Anionex%2Fbanana-slides | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/>
+</a>
 
-*Vibe your PPT like vibing code.*
 
-**中文 | [English](README_EN.md)**
+<br>
+<b>一个基于nano banana pro🍌的原生AI PPT生成应用<br></b>
+
+<b> 在几分钟内从想法到演示文稿，无需繁琐排版、口头提出修改，迈向真正的"Vibe PPT" </b>
+
+
 
 <p>
+  <a href="https://bananaslides.online/"><b>🚀 在线 Demo</b></a>
+  &nbsp;•&nbsp;
+  <a href="https://docs.bananaslides.online/"><b>📚 文档</b></a>
+  &nbsp;•&nbsp;
+  <a href="README_EN.md"><b>English</b></a>
+</p>
 
-[![GitHub Stars](https://img.shields.io/github/stars/Anionex/banana-slides?style=square&color=FFD700)](https://github.com/Anionex/banana-slides/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/Anionex/banana-slides?style=square&color=FFD700)](https://github.com/Anionex/banana-slides/network)
-[![GitHub Watchers](https://img.shields.io/github/watchers/Anionex/banana-slides?style=square&color=FFD700)](https://github.com/Anionex/banana-slides/watchers)
-
-
-[![Version](https://img.shields.io/badge/version-v0.4.0-44cc11)](https://github.com/Anionex/banana-slides)
-![Docker](https://img.shields.io/badge/Docker-Build-4A90D9?logo=docker&logoColor=white)
-[![License](https://img.shields.io/github/license/Anionex/banana-slides?color=0055aa)](https://github.com/Anionex/banana-slides/blob/main/LICENSE)
-
-
-
+[![GitHub Stars](https://img.shields.io/github/stars/Anionex/banana-slides?style=flat-square&color=FFD700)](https://github.com/Anionex/banana-slides/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/Anionex/banana-slides?style=flat-square&color=FFD700)](https://github.com/Anionex/banana-slides/network)
+[![GitHub Watchers](https://img.shields.io/github/watchers/Anionex/banana-slides?style=flat-square&color=FFD700)](https://github.com/Anionex/banana-slides/watchers)
 
 
-</p> 
+[![Version](https://img.shields.io/badge/version-v0.4.0-44cc11?style=flat-square)](https://github.com/Anionex/banana-slides)
+![Docker](https://img.shields.io/badge/Docker-Build-4A90D9?logo=docker&logoColor=white&style=flat-square)
+[![License](https://img.shields.io/github/license/Anionex/banana-slides?color=0055aa&style=flat-square)](https://github.com/Anionex/banana-slides/blob/main/LICENSE)
 
-<b>一个基于nano banana pro🍌的原生AI PPT生成应用，支持想法/大纲/页面描述生成完整PPT演示文稿，<br></b>
-<b> 自动提取附件图表、上传任意素材、口头提出修改，迈向真正的"Vibe PPT" </b>
 
-<b>🎯 降低PPT制作门槛，让每个人都能快速创作出美观专业的演示文稿</b>
 
-<br>
 
-*如果该项目对你有用, 欢迎star🌟 &  fork🍴*
-
-<br>
-
+<p>
+  如果该项目对你有用，欢迎 <b>Star 🌟</b> & <b>Fork 🍴</b>
 </p>
 
 </div>
-
-
 
 ## ✨ 项目缘起
 你是否也曾陷入这样的困境：明天就要汇报，但PPT还是一片空白；脑中有无数精彩的想法，却被繁琐的排版和设计消磨掉所有热情？
@@ -57,11 +58,16 @@
 
 ## 👨‍💻 适用场景
 
+
 1. **小白**：零门槛快速生成美观PPT，无需设计经验，减少模板选择烦恼
 2. **PPT专业人士**：参考AI生成的布局和图文元素组合，快速获取设计灵感
 3. **教育工作者**：将教学内容快速转换为配图教案PPT，提升课堂效果
 4. **学生**：快速完成作业Pre，把精力专注于内容而非排版美化
 5. **职场人士**：商业提案、产品介绍快速可视化，多场景快速适配
+
+<p>
+  <b>🎯目标： 降低 PPT 制作门槛，让每个人都能快速创作出美观专业的演示文稿</b>
+</p>
 
 
 ## 🎨 结果案例

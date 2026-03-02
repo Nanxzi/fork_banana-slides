@@ -334,6 +334,12 @@ def update_project(project_id):
         # Update extra_requirements if provided
         if 'extra_requirements' in data:
             project.extra_requirements = data['extra_requirements']
+
+        # Update generation requirements if provided
+        if 'outline_requirements' in data:
+            project.outline_requirements = data['outline_requirements']
+        if 'description_requirements' in data:
+            project.description_requirements = data['description_requirements']
         
         # Update template_style if provided
         if 'template_style' in data:
@@ -743,7 +749,7 @@ def generate_descriptions(project_id):
         if not project:
             return not_found('Project')
         
-        if project.status not in ['OUTLINE_GENERATED', 'DRAFT', 'DESCRIPTIONS_GENERATED']:
+        if project.status not in ['OUTLINE_GENERATED', 'DRAFT', 'DESCRIPTIONS_GENERATED', 'COMPLETED']:
             return bad_request("Project must have outline generated first")
         
         # IMPORTANT: Expire cached objects to ensure fresh data
@@ -762,6 +768,7 @@ def generate_descriptions(project_id):
         # 从配置中读取默认并发数，如果请求中提供了则使用请求的值
         max_workers = data.get('max_workers', current_app.config.get('MAX_DESCRIPTION_WORKERS', 5))
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
+        detail_level = data.get('detail_level', 'default')
         
         # Create task
         task = Task(
@@ -798,7 +805,8 @@ def generate_descriptions(project_id):
             outline,
             max_workers,
             app,
-            language
+            language,
+            detail_level
         )
         
         # Update project status
@@ -894,9 +902,15 @@ def generate_images(project_id):
             style_requirement = f"\n\nppt页面风格描述：\n\n{project.template_style}"
             combined_requirements = combined_requirements + style_requirement
         
+        # Set all target pages to QUEUED before submitting background task
+        # This ensures the status is visible to frontend immediately after API returns
+        for page in pages:
+            page.status = 'QUEUED'
+        db.session.commit()
+
         # Get app instance for background task
         app = current_app._get_current_object()
-        
+
         # Submit background task
         task_manager.submit_task(
             task.id,
