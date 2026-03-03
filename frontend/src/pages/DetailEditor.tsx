@@ -2,6 +2,9 @@ import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileText, Sparkles, Download, Upload, ChevronDown, Settings2 } from 'lucide-react';
 import { useT } from '@/hooks/useT';
+import { MarkdownTextarea, type MarkdownTextareaRef } from '@/components/shared/MarkdownTextarea';
+import PresetCapsules from '@/components/shared/PresetCapsules';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 // 组件内翻译
 const detailI18n = {
@@ -120,6 +123,7 @@ export const DetailEditor: React.FC = () => {
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const [descRequirements, setDescRequirements] = useState('');
   const [isDescReqDirty, setIsDescReqDirty] = useState(false);
+  const reqTextareaRef = useRef<MarkdownTextareaRef>(null);
   const [isDescReqOpen, setIsDescReqOpen] = useState(
     () => localStorage.getItem('descReqOpen') !== 'false'
   );
@@ -242,6 +246,19 @@ export const DetailEditor: React.FC = () => {
     return () => clearTimeout(timer);
   }, [descRequirements, isDescReqDirty, projectId]);
 
+  const insertAtReqCursor = useCallback((markdown: string) => {
+    reqTextareaRef.current?.insertAtCursor(markdown);
+  }, []);
+
+  const { handlePaste: handleReqImagePaste, handleFiles: handleReqImageFiles } = useImagePaste({
+    projectId: projectId || null,
+    setContent: (updater) => {
+      setDescRequirements(updater);
+      setIsDescReqDirty(true);
+    },
+    showToast: show,
+    insertAtCursor: insertAtReqCursor,
+  });
 
   const handleGenerateAll = async () => {
     const hasDescriptions = currentProject?.pages.some(
@@ -581,16 +598,28 @@ export const DetailEditor: React.FC = () => {
         </button>
         <div
           className="overflow-hidden transition-all duration-200 ease-in-out"
-          style={{ maxHeight: isDescReqOpen ? '160px' : '0px' }}
+          style={{ maxHeight: isDescReqOpen ? '600px' : '0px' }}
         >
           <div className="px-3 md:px-6 pb-3">
-            <textarea
-              data-testid="desc-requirements-textarea"
-              value={descRequirements}
-              onChange={(e) => { setDescRequirements(e.target.value); setIsDescReqDirty(true); }}
-              placeholder={t('detail.descRequirementsPlaceholder')}
-              rows={2}
-              className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-background-primary text-gray-700 dark:text-foreground-secondary placeholder-gray-400 dark:placeholder-foreground-tertiary/50 rounded-lg border border-gray-200 dark:border-border-primary resize-none focus:outline-none focus:border-banana-300 dark:focus:border-banana-500/40 transition-colors"
+            <div data-testid="desc-requirements-textarea">
+              <MarkdownTextarea
+                ref={reqTextareaRef}
+                value={descRequirements}
+                onChange={(val) => { setDescRequirements(val); setIsDescReqDirty(true); }}
+                onPaste={handleReqImagePaste}
+                onFiles={handleReqImageFiles}
+                placeholder={t('detail.descRequirementsPlaceholder')}
+                className="ring-inset"
+                rows={2}
+                showImagePreview={false}
+              />
+            </div>
+            <PresetCapsules
+              type="description"
+              onAppend={(text) => {
+                setDescRequirements((prev) => prev ? `${prev}\n${text}` : text);
+                setIsDescReqDirty(true);
+              }}
             />
           </div>
         </div>

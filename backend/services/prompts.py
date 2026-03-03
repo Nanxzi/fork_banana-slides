@@ -109,7 +109,16 @@ def _format_reference_files_xml(reference_files_content: Optional[List[Dict[str,
 def _format_requirements(requirements: str) -> str:
     """格式化用户提供的生成要求，返回可直接拼接到 prompt 中的文本段"""
     if requirements and requirements.strip():
-        return f"## Requirements\n{requirements.strip()}\n\n"
+        return (
+            "<user_requirements>\n"
+            f"{requirements.strip()}\n"
+            "</user_requirements>\n"
+            "Note: The requirements above apply to the generated content of each page and "
+            "take precedence over other content-related instructions. The required output format "
+            "and structural markers must still be used as-is. For example, if the user asks to "
+            "avoid '#' symbols, do NOT use '#' in the page content, but still use '## Title' as "
+            "the structural heading delimiter between pages.\n\n"
+        )
     return ""
 
 

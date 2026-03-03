@@ -59,6 +59,30 @@ Note: some image generation models don't support certain aspect ratios. If gener
 
 On the Slide Preview page, click the edit icon (pencil) on that slide, update the description or add an edit instruction, then click **Generate Image**. You can also use multi-select to batch regenerate several pages.
 
+## Can I include bar charts, line charts, or tree diagrams in slides?
+
+Two approaches:
+
+**Option 1: Describe in text + generation requirements (recommended)**
+Write the chart content directly in the page description using plain text or Markdown, and specify the chart style in **Extra Requirements** or **Description Requirements**. AI can usually render it directly. Example:
+```
+Right side of the page shows a 5-year revenue bar chart with data: 2020: $1.2M, 2021: $1.8M, 2022: $2.4M, 2023: $3.1M, 2024: $4.2M. Bars in blue gradient, white background.
+```
+
+**Option 2: Create the chart as an image first**
+Generate the chart with Excel, Python (matplotlib), or similar tools, then paste it (Ctrl+V) into the description card as a reference image. AI will draw in a similar style.
+
+## How do I keep chart styles consistent across all slides?
+
+Use **text-based style description** rather than uploading a reference image — tests show text gives better generation consistency.
+
+Write explicit style rules in **Extra Requirements** or **Style Description**, for example:
+- `All charts use blue color scheme (#2563EB as primary), white background, no borders`
+- `Chart fonts are always sans-serif, data labels always shown above bars`
+- `Line charts use circular data point markers, line weight 2px`
+
+The more specific the constraints, the more consistent the output across pages. If you care about letter spacing or font sizes, include those too.
+
 ## Where is the AI input bar for editing outlines and descriptions?
 
 It's in the **top navigation bar** of the Outline Editor and Description Editor — fill in your instruction and press **Ctrl+Enter**. Example: `Add a case study section after page 3`.
