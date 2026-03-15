@@ -1,16 +1,13 @@
 <div align="center">
+<img src="https://github.com/user-attachments/assets/81fe6816-44cc-4c61-97c7-f3c099650966" alt="banana-slides">
 
- 
-<img width="1376" height="450" alt="final1" src="https://github.com/user-attachments/assets/0af7df7e-21e5-45da-809b-fa7e51a3f108" />
-<hr>
+  
 <a href="https://trendshift.io/repositories/22056" target="_blank">
   <img src="https://trendshift.io/api/badge/repositories/22056" alt="Anionex%2Fbanana-slides | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/>
 </a>
-
-
 <br>
-<b>一个基于nano banana pro🍌的原生AI PPT生成应用<br></b>
 
+<b>一个基于nano banana pro🍌的原生AI PPT生成应用<br></b>
 <b> 在几分钟内从想法到演示文稿，无需繁琐排版、口头提出修改，迈向真正的"Vibe PPT" </b>
 
 
@@ -597,10 +594,10 @@ banana-slides/
 
 欢迎提出新功能建议或反馈，本人也会~~佛系~~回答大家问题
 
-<img width="302" alt="image" src="https://github.com/user-attachments/assets/52d3f3b5-66bb-4e92-b010-d6c7d8d624fb" />
 
 
 
+<img width="302" src="https://private-user-images.githubusercontent.com/123177548/563407714-01f84824-a8f5-4858-97c2-a7e65d70755e.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzM0NjQ5MTksIm5iZiI6MTc3MzQ2NDYxOSwicGF0aCI6Ii8xMjMxNzc1NDgvNTYzNDA3NzE0LTAxZjg0ODI0LWE4ZjUtNDg1OC05N2MyLWE3ZTY1ZDcwNzU1ZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzE0JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMxNFQwNTAzMzlaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1jYjQxMzQ4ZjIxNjQ2MjIwMTI2NGUzMDFmMDQ2M2Q1Y2MwNDE4OGVkMTdmYTlmMzk1NzcxYmZkMDEzMTBhNzY2JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.RMmYdJClH6y7tdMuET73o7UzJ-bCONxmF6IjpvUBmLw">
 
 
 
