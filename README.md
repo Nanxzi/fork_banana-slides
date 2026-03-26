@@ -349,8 +349,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 **使用本地构建（docker-compose.yml）**
 
+注：若手动修改了代码，该方法不适用，需要先将代码还原到拉取时的版本。
+
 ```bash
-git pull
+git pull 
 docker compose down
 docker compose build --no-cache
 docker compose up -d
