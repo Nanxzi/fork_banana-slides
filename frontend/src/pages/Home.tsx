@@ -16,6 +16,9 @@ import { ASPECT_RATIO_OPTIONS } from '@/config/aspectRatio';
 
 type CreationType = 'idea' | 'outline' | 'description' | 'ppt_renovation';
 
+// 支持作为参考文件上传的文档扩展名（与后端 file_parser_service 保持一致）
+const ALLOWED_DOC_EXTENSIONS = ['pdf', 'docx', 'pptx', 'doc', 'ppt', 'xlsx', 'xls', 'csv', 'txt', 'md'];
+
 // 页面特有翻译 - AI 可以直接看到所有文案，保留原始 key 结构
 const homeI18n = {
   zh: {
@@ -84,6 +87,7 @@ const homeI18n = {
         fileUploadSuccess: '文件上传成功',
         fileUploadFailed: '文件上传失败',
         fileTooLarge: '文件过大：{{size}}MB，最大支持 200MB',
+        fileUploadInProgress: '正在上传文件，请等待当前上传完成后再试',
         unsupportedFileType: '不支持的文件类型: {{type}}',
         pptTip: '建议先在本地将 PPTX 转为 PDF 后再上传，可获得更好的兼容性和更快的处理速度',
         filesAdded: '已添加 {{count}} 个参考文件',
@@ -160,6 +164,7 @@ const homeI18n = {
         fileUploadSuccess: 'File uploaded successfully',
         fileUploadFailed: 'Failed to upload file',
         fileTooLarge: 'File too large: {{size}}MB, maximum 200MB',
+        fileUploadInProgress: 'A file upload is already in progress — please wait for it to finish',
         unsupportedFileType: 'Unsupported file type: {{type}}',
         pptTip: 'We recommend converting your PPTX to PDF locally before uploading for better compatibility and faster processing',
         filesAdded: 'Added {{count}} reference file(s)',
@@ -287,8 +292,6 @@ export const Home: React.FC = () => {
     const docFiles: File[] = [];
     const unsupportedExts: string[] = [];
 
-    const allowedDocExtensions = ['pdf', 'docx', 'pptx', 'doc', 'ppt', 'xlsx', 'xls', 'csv', 'txt', 'md'];
-
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.kind !== 'file') continue;
@@ -299,7 +302,7 @@ export const Home: React.FC = () => {
         hasImages = true;
       } else {
         const fileExt = file.name.split('.').pop()?.toLowerCase();
-        if (fileExt && allowedDocExtensions.includes(fileExt)) {
+        if (fileExt && ALLOWED_DOC_EXTENSIONS.includes(fileExt)) {
           docFiles.push(file);
         } else {
           unsupportedExts.push(fileExt || file.type);
@@ -328,7 +331,7 @@ export const Home: React.FC = () => {
 
   // 上传文件
   // 在 Home 页面，文件始终上传为全局文件（不关联项目），因为此时还没有项目
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (isUploadingFile) return;
 
     // 检查文件大小（前端预检查）
@@ -397,7 +400,41 @@ export const Home: React.FC = () => {
     } finally {
       setIsUploadingFile(false);
     }
-  };
+  }, [isUploadingFile, show, t]);
+
+  // 拖拽进来的文档文件：按扩展名过滤后复用 handleFileUpload（逐个上传+自动触发解析）
+  const handleDocumentFiles = useCallback(async (files: File[]) => {
+    // 已有上传在进行时告知用户，避免文件被静默丢弃（handleFileUpload 的 isUploadingFile 守卫）
+    if (isUploadingFile) {
+      show({ message: t('home.messages.fileUploadInProgress'), type: 'info' });
+      return;
+    }
+
+    const accepted: File[] = [];
+    const rejected: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext && ALLOWED_DOC_EXTENSIONS.includes(ext)) {
+        accepted.push(file);
+      } else {
+        rejected.push(ext || file.type || file.name);
+      }
+    }
+
+    if (rejected.length > 0) {
+      // 去重扩展名，避免一次拖入多个同类型不支持文件时 toast 重复冗长
+      show({
+        message: t('home.messages.unsupportedFileType', {
+          type: Array.from(new Set(rejected)).join(', '),
+        }),
+        type: 'info',
+      });
+    }
+
+    for (const file of accepted) {
+      await handleFileUpload(file);
+    }
+  }, [isUploadingFile, handleFileUpload, show, t]);
 
   // 从当前项目移除文件引用（不删除文件本身）
   const handleFileRemove = (fileId: string) => {
@@ -992,6 +1029,7 @@ export const Home: React.FC = () => {
               onChange={setContent}
               onPaste={handlePaste}
               onFiles={handleImageFiles}
+              onDocumentFiles={handleDocumentFiles}
               onSelectFromLibrary={() => setIsMaterialSelectorOpen(true)}
               rows={activeTab === 'idea' ? 4 : 8}
               className="text-sm md:text-base border-2 border-gray-200 dark:border-border-primary dark:bg-background-tertiary dark:text-white focus-within:border-banana-400 dark:focus-within:border-banana transition-colors duration-200"
