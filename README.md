@@ -199,7 +199,7 @@
 <details>
   <summary>📒 Windows/Mac用户说明</summary>
 
-如果你使用 **Windows 或 macOS**，请先安装 **Docker Desktop**，并确保 Docker 正在运行（Windows 可检查系统托盘图标；macOS 可检查菜单栏图标），然后按文档中的相同步骤操作。
+如果你使用 **Windows 或 macOS**，请先[安装 **Docker Desktop**](https://docs.docker.com/desktop/setup/install/windows-install/)，并确保 Docker 正在运行（Windows 可检查系统托盘图标；macOS 可检查菜单栏图标），然后按文档中的相同步骤操作。
 
 > **提示**：如果遇到问题，Windows 用户请在 Docker Desktop 设置中启用 **WSL 2 后端**（推荐）；同时确保端口 **3000** 和 **5000** 未被占用。
 
@@ -218,7 +218,7 @@ cd banana-slides
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，配置必要的环境变量：
+**（可选， 也可以打开后在用户界面配置）** 编辑 `.env` 文件，配置必要的环境变量：
 > **项目中大模型接口以AIHubMix平台格式为标准，推荐使用 [AIHubMix(点击此处可直接访问)](https://aihubmix.com/?aff=17EC) 获取API密钥，减小迁移成本**<br>
 > **友情提示：谷歌nano banana pro模型接口费用较高，请注意调用成本**
 ```env
