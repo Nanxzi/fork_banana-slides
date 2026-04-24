@@ -78,7 +78,7 @@ const settingsI18n = {
       apiKeyTip: { before: "若需快速配置或稳定高并发生图，可选择 ", after: "" },
       serviceTest: {
         title: "服务测试", description: "提前验证关键服务配置是否可用，避免使用期间异常。",
-        tip: "提示：图像生成和 MinerU 测试可能需要 30-60 秒，请耐心等待。",
+        tip: "提示：图像生成测试可能需要数分钟（取决于模型），请耐心等待。",
         startTest: "开始测试", testing: "测试中...", testTimeout: "测试超时，请重试", testFailed: "测试失败",
         tests: {
           baiduOcr: { title: "Baidu OCR 服务", description: "识别测试图片文字，验证 BAIDU_API_KEY 配置" },
@@ -178,7 +178,7 @@ const settingsI18n = {
       apiKeyTip: { before: "For quick setup or stable high-concurrency image generation, get an API key from ", after: "" },
       serviceTest: {
         title: "Service Test", description: "Verify key service configurations before use to avoid issues.",
-        tip: "Tip: Image generation and MinerU tests may take 30-60 seconds, please be patient.",
+        tip: "Tip: Image generation tests may take several minutes depending on the model, please be patient.",
         startTest: "Start Test", testing: "Testing...", testTimeout: "Test timeout, please retry", testFailed: "Test failed",
         tests: {
           baiduOcr: { title: "Baidu OCR Service", description: "Recognize text in test image, verify BAIDU_API_KEY configuration" },
@@ -711,41 +711,43 @@ export const Settings: React.FC = () => {
       const response = await action(testSettings);
       const taskId = response.data.task_id;
 
+      // isActive tracks whether this test round is still pending — avoids stale closure
+      let isActive = true;
+      // eslint-disable-next-line prefer-const
+      let pollInterval: ReturnType<typeof setInterval>;
+      const finish = (nextState: ServiceTestState, toastMsg: string, toastType: 'success' | 'error') => {
+        if (!isActive) return;
+        isActive = false;
+        clearInterval(pollInterval);
+        updateServiceTest(key, nextState);
+        show({ message: toastMsg, type: toastType });
+      };
+
       // 开始轮询任务状态
-      const pollInterval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         try {
           const statusResponse = await api.getTestStatus(taskId);
           const taskStatus = statusResponse.data.status;
 
           if (taskStatus === 'COMPLETED') {
-            clearInterval(pollInterval);
             const detail = formatDetail(statusResponse.data.result || {});
             const message = statusResponse.data.message || t('settings.messages.testSuccess');
-            updateServiceTest(key, { status: 'success', message, detail });
-            show({ message, type: 'success' });
+            finish({ status: 'success', message, detail }, message, 'success');
           } else if (taskStatus === 'FAILED') {
-            clearInterval(pollInterval);
             const errorMessage = statusResponse.data.error || t('settings.serviceTest.testFailed');
-            updateServiceTest(key, { status: 'error', message: errorMessage });
-            show({ message: `${t('settings.serviceTest.testFailed')}: ${errorMessage}`, type: 'error' });
+            finish({ status: 'error', message: errorMessage }, `${t('settings.serviceTest.testFailed')}: ${errorMessage}`, 'error');
           }
           // 如果是 PENDING 或 PROCESSING，继续轮询
         } catch (pollError: any) {
-          clearInterval(pollInterval);
           const errorMessage = pollError?.response?.data?.error?.message || pollError?.message || t('settings.serviceTest.testFailed');
-          updateServiceTest(key, { status: 'error', message: errorMessage });
-          show({ message: `${t('settings.serviceTest.testFailed')}: ${errorMessage}`, type: 'error' });
+          finish({ status: 'error', message: errorMessage }, `${t('settings.serviceTest.testFailed')}: ${errorMessage}`, 'error');
         }
       }, 2000); // 每2秒轮询一次
 
       // 设置最大轮询时间（2分钟）
       setTimeout(() => {
-        clearInterval(pollInterval);
-        if (serviceTestStates[key]?.status === 'loading') {
-          updateServiceTest(key, { status: 'error', message: t('settings.serviceTest.testTimeout') });
-          show({ message: t('settings.serviceTest.testTimeout'), type: 'error' });
-        }
-      }, 120000);
+        finish({ status: 'error', message: t('settings.serviceTest.testTimeout') }, t('settings.serviceTest.testTimeout'), 'error');
+      }, 600000); // 10 分钟，覆盖 gpt-image-2 等慢模型的生成时间
 
     } catch (error: any) {
       const errorMessage = error?.response?.data?.error?.message || error?.message || t('common.unknownError');
