@@ -12,6 +12,7 @@ import logging
 from typing import Generator
 
 import requests as http_requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from .base import TextProvider, strip_think_tags
 
@@ -22,6 +23,22 @@ _RESPONSES_ENDPOINT = f"{_CODEX_BASE_URL}/responses"
 
 # Default timeout for HTTP requests (seconds)
 _DEFAULT_TIMEOUT = 120
+
+
+def _is_retryable_http_error(exc: BaseException) -> bool:
+    """Return True for transient HTTP errors worth retrying (429, 5xx)."""
+    if isinstance(exc, http_requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in (429, 500, 502, 503, 504)
+    return False
+
+
+def _log_codex_retry(retry_state):
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    status = getattr(getattr(exc, 'response', None), 'status_code', '?')
+    logger.warning(
+        "Codex request failed (HTTP %s), retrying %d/%d: %s",
+        status, retry_state.attempt_number, 5, exc,
+    )
 
 
 class CodexTextProvider(TextProvider):
@@ -56,15 +73,16 @@ class CodexTextProvider(TextProvider):
             "stream": True,
         }
 
-    # ------------------------------------------------------------------
-    # Non-streaming
-    # ------------------------------------------------------------------
-
-    def generate_text(self, prompt: str, thinking_budget: int = 0) -> str:
-        """Generate text via the Responses API (always streaming, collected into full result)."""
-        payload = self._build_payload(prompt)
-        logger.debug("Codex text request: model=%s", self.model)
-
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        retry=retry_if_exception(_is_retryable_http_error),
+        reraise=True,
+        before_sleep=_log_codex_retry,
+    )
+    def _post_with_retry(self, payload: dict) -> http_requests.Response:
+        """POST to the Codex endpoint with exponential-backoff retry on 429/5xx."""
+        logger.debug("Codex request: model=%s", self.model)
         resp = http_requests.post(
             _RESPONSES_ENDPOINT,
             headers=self._headers(),
@@ -73,7 +91,15 @@ class CodexTextProvider(TextProvider):
             stream=True,
         )
         resp.raise_for_status()
+        return resp
 
+    # ------------------------------------------------------------------
+    # Non-streaming
+    # ------------------------------------------------------------------
+
+    def generate_text(self, prompt: str, thinking_budget: int = 0) -> str:
+        """Generate text via the Responses API (always streaming, collected into full result)."""
+        resp = self._post_with_retry(self._build_payload(prompt))
         collected = []
         for chunk in self._iter_sse_text(resp):
             collected.append(chunk)
@@ -85,18 +111,7 @@ class CodexTextProvider(TextProvider):
 
     def generate_text_stream(self, prompt: str, thinking_budget: int = 0) -> Generator[str, None, None]:
         """Stream text via the Responses API (SSE)."""
-        payload = self._build_payload(prompt)
-        logger.debug("Codex text request (stream): model=%s", self.model)
-
-        resp = http_requests.post(
-            _RESPONSES_ENDPOINT,
-            headers=self._headers(),
-            json=payload,
-            timeout=_DEFAULT_TIMEOUT,
-            stream=True,
-        )
-        resp.raise_for_status()
-
+        resp = self._post_with_retry(self._build_payload(prompt))
         yield from self._iter_sse_text(resp)
 
     def generate_with_image(self, prompt: str, image_path: str, thinking_budget: int = 0) -> str:
@@ -123,15 +138,7 @@ class CodexTextProvider(TextProvider):
             "stream": True,
         }
 
-        resp = http_requests.post(
-            _RESPONSES_ENDPOINT,
-            headers=self._headers(),
-            json=payload,
-            timeout=_DEFAULT_TIMEOUT,
-            stream=True,
-        )
-        resp.raise_for_status()
-
+        resp = self._post_with_retry(payload)
         collected = []
         for chunk in self._iter_sse_text(resp):
             collected.append(chunk)

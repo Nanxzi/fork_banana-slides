@@ -17,6 +17,7 @@ from typing import Optional, List
 
 import requests as http_requests
 from PIL import Image
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from .base import ImageProvider
 from .openai_provider import _compute_gpt_image_size
@@ -27,6 +28,22 @@ _CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 _RESPONSES_ENDPOINT = f"{_CODEX_BASE_URL}/responses"
 
 _DEFAULT_TIMEOUT = 180  # image generation can be slow
+
+
+def _is_retryable_http_error(exc: BaseException) -> bool:
+    """Return True for transient HTTP errors worth retrying (429, 5xx)."""
+    if isinstance(exc, http_requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in (429, 500, 502, 503, 504)
+    return False
+
+
+def _log_codex_retry(retry_state):
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    status = getattr(getattr(exc, 'response', None), 'status_code', '?')
+    logger.warning(
+        "Codex image request failed (HTTP %s), retrying %d/%d: %s",
+        status, retry_state.attempt_number, 5, exc,
+    )
 
 
 class CodexImageProvider(ImageProvider):
@@ -54,9 +71,9 @@ class CodexImageProvider(ImageProvider):
             "Content-Type": "application/json",
         }
 
-    def _build_payload(self, prompt: str, aspect_ratio: str, ref_images: Optional[List[Image.Image]] = None, quality: str = "high") -> dict:
+    def _build_payload(self, prompt: str, aspect_ratio: str, ref_images: Optional[List[Image.Image]] = None, quality: str = "high", resolution: Optional[str] = None) -> dict:
         """Build a Responses API request with image_generation tool."""
-        size = _compute_gpt_image_size(aspect_ratio, self.resolution)
+        size = _compute_gpt_image_size(aspect_ratio, resolution or self.resolution)
 
         content = []
         if ref_images:
@@ -92,6 +109,13 @@ class CodexImageProvider(ImageProvider):
     # Public interface
     # ------------------------------------------------------------------
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        retry=retry_if_exception(_is_retryable_http_error),
+        reraise=True,
+        before_sleep=_log_codex_retry,
+    )
     def generate_image(
         self,
         prompt: str,
@@ -101,38 +125,23 @@ class CodexImageProvider(ImageProvider):
         enable_thinking: bool = False,
         thinking_budget: int = 0,
     ) -> Optional[Image.Image]:
-        """Generate an image via the Codex Responses API.
+        """Generate an image via the Codex Responses API."""
+        payload = self._build_payload(prompt, aspect_ratio, ref_images=ref_images, resolution=resolution)
+        logger.debug(
+            "Codex image request: image_model=%s, aspect=%s, resolution=%s, ref_images=%d",
+            self.image_model, aspect_ratio, resolution, len(ref_images) if ref_images else 0,
+        )
 
-        ref_images, resolution, enable_thinking, thinking_budget are accepted
-        for interface compatibility but ignored — the Codex image_generation
-        tool does not support these features.
-        """
-        try:
-            payload = self._build_payload(prompt, aspect_ratio, ref_images=ref_images)
-            logger.debug(
-                "Codex image request: image_model=%s, aspect=%s, ref_images=%d",
-                self.image_model, aspect_ratio, len(ref_images) if ref_images else 0,
-            )
+        resp = http_requests.post(
+            _RESPONSES_ENDPOINT,
+            headers=self._headers(),
+            json=payload,
+            timeout=_DEFAULT_TIMEOUT,
+            stream=True,
+        )
+        resp.raise_for_status()
 
-            resp = http_requests.post(
-                _RESPONSES_ENDPOINT,
-                headers=self._headers(),
-                json=payload,
-                timeout=_DEFAULT_TIMEOUT,
-                stream=True,
-            )
-            resp.raise_for_status()
-
-            return self._parse_sse_for_image(resp)
-
-        except Exception as e:
-            error_detail = (
-                f"Error generating image with Codex "
-                f"(image_model={self.image_model}): "
-                f"{type(e).__name__}: {e}"
-            )
-            logger.error(error_detail, exc_info=True)
-            raise Exception(error_detail) from e
+        return self._parse_sse_for_image(resp)
 
     # ------------------------------------------------------------------
     # SSE parsing

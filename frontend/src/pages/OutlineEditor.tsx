@@ -191,9 +191,8 @@ export const OutlineEditor: React.FC = () => {
   const [outlineRequirements, setOutlineRequirements] = useState('');
   const [isRequirementsDirty, setIsRequirementsDirty] = useState(false);
   const reqTextareaRef = useRef<MarkdownTextareaRef>(null);
-  const [isRequirementsOpen, setIsRequirementsOpen] = useState(
-    () => localStorage.getItem('outlineReqOpen') !== 'false'
-  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const [isMaterialSelectorOpen, setIsMaterialSelectorOpen] = useState(false);
   const [activeMaterialTarget, setActiveMaterialTarget] = useState<'input' | 'requirements'>('input');
@@ -211,15 +210,18 @@ export const OutlineEditor: React.FC = () => {
 
   // 点击外部关闭下拉
   useEffect(() => {
-    if (!fileMenuOpen) return;
+    if (!fileMenuOpen && !settingsOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
         setFileMenuOpen(false);
       }
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [fileMenuOpen]);
+  }, [fileMenuOpen, settingsOpen]);
 
   // 项目切换时：强制加载文本
   useEffect(() => {
@@ -562,6 +564,44 @@ export const OutlineEditor: React.FC = () => {
                   : currentProject.creation_type === 'outline' ? t('outline.reParseOutline') : t('outline.reGenerate')}
               </Button>
             )}
+            {/* 设置 popover */}
+            <div className="relative" ref={settingsRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                icon={<span className="relative"><Settings2 size={16} className="md:w-[18px] md:h-[18px]" />{outlineRequirements && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-banana-400" />}</span>}
+                title={t('outline.outlineRequirements')}
+              />
+              {settingsOpen && (
+                <div className="absolute top-full left-0 mt-1 z-50 w-80 rounded-xl border border-gray-200 dark:border-border-primary bg-white dark:bg-background-secondary shadow-lg dark:shadow-none p-4 space-y-3">
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-foreground-tertiary">
+                    {t('outline.outlineRequirements')}
+                  </label>
+                  <div data-testid="outline-requirements-textarea">
+                    <MarkdownTextarea
+                      ref={reqTextareaRef}
+                      value={outlineRequirements}
+                      onChange={(val) => { setOutlineRequirements(val); setIsRequirementsDirty(true); }}
+                      onPaste={handleReqImagePaste}
+                      onFiles={handleReqImageFiles}
+                      onSelectFromLibrary={() => { setActiveMaterialTarget('requirements'); setIsMaterialSelectorOpen(true); }}
+                      placeholder={t('outline.outlineRequirementsPlaceholder')}
+                      className="ring-inset"
+                      rows={2}
+                      showImagePreview={false}
+                    />
+                  </div>
+                  <PresetCapsules
+                    type="outline"
+                    onAppend={(text) => {
+                      setOutlineRequirements((prev) => prev ? `${prev}\n${text}` : text);
+                      setIsRequirementsDirty(true);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
             {/* 导入导出下拉菜单 */}
             <div className="relative" ref={fileMenuRef}>
               <Button
@@ -609,54 +649,6 @@ export const OutlineEditor: React.FC = () => {
             <span className="text-xs md:text-sm text-gray-500 dark:text-foreground-tertiary whitespace-nowrap">
               {t('outline.pageCount', { count: String(currentProject.pages.length) })}
             </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 大纲生成要求 - 可折叠 */}
-      <div className="bg-white dark:bg-background-secondary border-b border-gray-200 dark:border-border-primary flex-shrink-0">
-        <button
-          type="button"
-          data-testid="outline-requirements-toggle"
-          onClick={() => { const next = !isRequirementsOpen; setIsRequirementsOpen(next); localStorage.setItem('outlineReqOpen', String(next)); }}
-          className="w-full px-3 md:px-6 py-2 flex items-center gap-2 text-xs text-gray-500 dark:text-foreground-tertiary hover:text-gray-700 dark:hover:text-foreground-secondary hover:bg-gray-50 dark:hover:bg-background-hover transition-colors"
-        >
-          <Settings2 size={12} className="flex-shrink-0" />
-          <span className="font-medium">{t('outline.outlineRequirements')}</span>
-          {outlineRequirements && !isRequirementsOpen && (
-            <span className="w-1.5 h-1.5 rounded-full bg-banana-400 flex-shrink-0" />
-          )}
-          <ChevronDown
-            size={12}
-            className={`ml-auto transition-transform duration-200 ${isRequirementsOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-        <div
-          className={`transition-all duration-200 ease-in-out ${isRequirementsOpen ? 'overflow-visible' : 'overflow-hidden'}`}
-          style={{ maxHeight: isRequirementsOpen ? '600px' : '0px' }}
-        >
-          <div className="px-3 md:px-6 pb-3">
-            <div data-testid="outline-requirements-textarea">
-              <MarkdownTextarea
-                ref={reqTextareaRef}
-                value={outlineRequirements}
-                onChange={(val) => { setOutlineRequirements(val); setIsRequirementsDirty(true); }}
-                onPaste={handleReqImagePaste}
-                onFiles={handleReqImageFiles}
-                onSelectFromLibrary={() => { setActiveMaterialTarget('requirements'); setIsMaterialSelectorOpen(true); }}
-                placeholder={t('outline.outlineRequirementsPlaceholder')}
-                className="ring-inset"
-                rows={2}
-                showImagePreview={false}
-              />
-            </div>
-            <PresetCapsules
-              type="outline"
-              onAppend={(text) => {
-                setOutlineRequirements((prev) => prev ? `${prev}\n${text}` : text);
-                setIsRequirementsDirty(true);
-              }}
-            />
           </div>
         </div>
       </div>

@@ -11,7 +11,7 @@ db = SQLAlchemy(
         'pool_pre_ping': True,  # 连接前检查，确保连接有效
         'pool_recycle': 3600,  # 1小时回收连接，释放文件句柄
         'pool_size': 10,
-        'max_overflow': 20,
+        'max_overflow': 50,
         'pool_timeout': 30,  # 获取连接的超时时间（秒）
     }
 )

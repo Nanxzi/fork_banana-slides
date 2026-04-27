@@ -12,6 +12,7 @@ import os
 import secrets
 import base64
 import threading
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlencode, urlparse, parse_qs
@@ -141,6 +142,75 @@ def list_models():
     })
 
 
+@openai_oauth_bp.route("/manual-callback", methods=["POST"])
+def manual_callback():
+    """Accept a pasted callback URL and complete the token exchange.
+
+    Used when port 1455 is blocked and the automatic callback server
+    cannot receive the redirect.
+    """
+    data = request.get_json(silent=True) or {}
+    callback_url = data.get("callback_url", "")
+    if not callback_url:
+        return error_response("callback_url is required", 400)
+
+    parsed = urlparse(callback_url)
+    params = parse_qs(parsed.query)
+    code = params.get("code", [None])[0]
+    state = params.get("state", [None])[0]
+    error_param = params.get("error", [None])[0]
+
+    if error_param:
+        return error_response(f"OAuth error: {error_param}", 400)
+    if not code or not state:
+        return error_response("URL missing code or state parameter", 400)
+
+    flow = _pending_flows.pop(state, None)
+    if not flow:
+        return error_response("Login session expired or already used — click Login again, then paste the new URL", 400)
+
+    code_verifier = flow["code_verifier"]
+    app = flow.get("app")
+
+    try:
+        resp = http_requests.post(
+            _OPENAI_TOKEN_URL,
+            data=urlencode({
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": _build_redirect_uri(),
+                "client_id": _OPENAI_CLIENT_ID,
+                "code_verifier": code_verifier,
+            }),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        token_data = resp.json()
+    except Exception as e:
+        logger.error("Manual callback token exchange failed: %s", e)
+        return error_response("Token exchange failed", 500)
+
+    access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    expires_in = token_data.get("expires_in", 3600)
+    account_id = _extract_account_id(token_data.get("id_token"))
+
+    with app.app_context() if app else nullcontext():
+        settings = Settings.get_settings()
+        settings.openai_oauth_access_token = access_token
+        settings.openai_oauth_refresh_token = refresh_token
+        settings.openai_oauth_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        settings.openai_oauth_account_id = account_id
+        db.session.commit()
+
+    logger.info("OpenAI OAuth connected (manual) for account: %s", account_id)
+    return success_response({
+        "message": "Connected",
+        "account_id": account_id,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Standalone callback server on port 1455
 # ---------------------------------------------------------------------------
@@ -239,8 +309,7 @@ def _ensure_callback_server():
             _callback_server = server
             logger.info("OAuth callback server started on port %d", _CALLBACK_PORT)
         except OSError as e:
-            logger.error("Failed to start OAuth callback server on port %d: %s", _CALLBACK_PORT, e)
-            raise
+            logger.warning("Port %d occupied — automatic callback unavailable, manual paste required: %s", _CALLBACK_PORT, e)
 
 
 def _extract_account_id(id_token: str | None) -> str | None:
@@ -268,12 +337,14 @@ def _build_callback_html(success: bool, message: str) -> str:
     status_text = "Connected" if success else f"Error: {safe_message}"
     color = "#22c55e" if success else "#ef4444"
     json_message = json.dumps(message)
+    hint = "" if success else '<p style="margin-top:1rem;font-size:0.85rem;color:#666">If the connection failed, copy the full URL from the address bar above and paste it into the manual input on the Settings page.</p>'
     return f"""<!DOCTYPE html>
 <html><head><title>OpenAI OAuth</title></head>
 <body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
 <div style="text-align:center">
 <p style="font-size:1.5rem;color:{color}">{status_text}</p>
 <p>This window will close automatically.</p>
+{hint}
 </div>
 <script>
 if (window.opener) {{

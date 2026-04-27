@@ -98,13 +98,13 @@ describe('MaterialGeneratorModal', () => {
     const dialog = screen.getByRole('dialog')
     const toggle = screen.getByTestId('material-fullscreen-toggle')
 
-    expect(dialog.className).toContain('max-w-[800px]')
+    expect(dialog.className).toContain('max-w-[1120px]')
 
     fireEvent.click(toggle)
     expect(dialog.className).toContain('max-w-[calc(100vw-2rem)]')
 
     fireEvent.click(toggle)
-    expect(dialog.className).toContain('max-w-[800px]')
+    expect(dialog.className).toContain('max-w-[1120px]')
   })
 
   it('restores the last completed preview when reopened', async () => {

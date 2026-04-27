@@ -45,6 +45,7 @@ export interface Page {
   part?: string; // 章节名
   outline_content: OutlineContent | null;
   description_content?: DescriptionContent;
+  narration_text?: string; // TTS 旁白文本
   generated_image_url?: string; // 后端返回 generated_image_url
   generated_image_path?: string; // 前端使用的别名
   status: PageStatus;
@@ -164,6 +165,8 @@ export interface Settings {
   image_api_base_url?: string;
   image_caption_api_key_length: number;
   image_caption_api_base_url?: string;
+  // OpenAI image API protocol
+  openai_image_api_protocol?: string;
   // OpenAI Codex OAuth
   openai_oauth_connected: boolean;
   openai_oauth_account_id?: string;
