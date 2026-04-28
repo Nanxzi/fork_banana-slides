@@ -423,33 +423,7 @@ uv sync
 复制环境变量模板：
 ```bash
 cp .env.example .env
-```
-
-编辑 `.env` 文件，配置你的 API 密钥：
-> **项目中大模型接口以AIHubMix平台格式为标准，推荐使用 [AIHubMix](https://aihubmix.com/?aff=17EC) 获取API密钥，减小迁移成本** 
-```env
-# AI Provider格式配置 (gemini / openai / vertex)
-AI_PROVIDER_FORMAT=gemini
-
-# Gemini 格式配置（当 AI_PROVIDER_FORMAT=gemini 时使用）
-GOOGLE_API_KEY=your-api-key-here
-GOOGLE_API_BASE=https://generativelanguage.googleapis.com
-# 代理示例: https://aihubmix.com/gemini
-
-# OpenAI 格式配置（当 AI_PROVIDER_FORMAT=openai 时使用）
-OPENAI_API_KEY=your-api-key-here
-OPENAI_API_BASE=https://api.openai.com/v1
-# 代理示例: https://aihubmix.com/v1
-
-# Vertex AI 配置（AI_PROVIDER_FORMAT=vertex）
-# 需要 GCP 项目和服务账户密钥
-# VERTEX_PROJECT_ID=your-gcp-project-id
-# VERTEX_LOCATION=global
-# GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account.json
-
-# 可修改此变量来控制后端服务端口
-BACKEND_PORT=5000
-...
+# 然后按照前述方法，打开编辑 `.env` 文件，配置你的 API 密钥
 ```
 
 #### 前端安装
@@ -497,24 +471,10 @@ npm run dev
 ## 🛠️ 技术架构
 
 ### 前端技术栈
-- **框架**：React 18 + TypeScript
-- **构建工具**：Vite 5
-- **状态管理**：Zustand
+React 18 + TypeScript + Vite 5 + Zustand
 
 ### 后端技术栈
-- **语言**：Python 3.10+
-- **框架**：Flask 3.0
-- **包管理**：uv
-- **数据库**：SQLite + Flask-SQLAlchemy
-- **AI能力**：Google Gemini API
-- **PPT处理**：python-pptx
-- **图片处理**：Pillow
-- **TTS语音**：edge-tts
-- **视频合成**：FFmpeg
-- **并发处理**：ThreadPoolExecutor
-- **跨域支持**：Flask-CORS
-
-
+Python 3.10+ + Flask 3.0 + uv + SQLite
 
 ## 交流群
 为了方便大家沟通互助，建此微信交流群.
@@ -536,23 +496,7 @@ npm run dev
 
 
 ## **🔧 常见问题**
-
-1. **生成页面文字有乱码，文字不清晰**
-    - 可选择更高分辨率的输出（openai 格式可能不支持调高分辨率，建议使用gemini格式）。根据测试，生成页面前将 1k 分辨率调整至 2k 后，文字渲染质量会显著提升。
-    - 请确保在页面描述中包含具体要渲染的文字内容。
-
-2. **导出可编辑 ppt 效果不佳，如文字重叠、无样式等**
-    - 90% 情况为 API 配置出现问题。可以参考 [issue 121](https://github.com/Anionex/banana-slides/issues/121) 中的排查与解决方案。
-
-3. **支持免费层级的 Gemini API Key 吗？**
-    - 免费层级只支持文本生成，不支持图片生成。
-
-4. **生成内容时提示 503 错误或 Retry Error**
-    - 可以根据 README 中的命令查看 Docker 后端日志，定位 503 问题的详细报错，一般是模型配置不正确导致。
-
-5. **.env 中设置了 API Key 之后，为什么不生效？**
-    - 运行时编辑 `.env` 后需要重启 Docker 容器以应用更改。
-    - 如果曾在网页设置页中配置参数，会覆盖 `.env` 中的参数，可通过"还原默认设置"恢复为 `.env` 设置。
+可见[官网文档](https://docs.bananaslides.online/zh/faq)
 
 
 ## 🤝 贡献指南
@@ -572,7 +516,6 @@ npm run dev
 <details> 
 <summary> 详情 </summary>
 需要商业许可证（Commercial License）（例如：希望闭源使用、私有化部署交付、将本项目集成进闭源产品，或在不公开对应源代码的前提下提供服务），请联系作者：davidyang042@gmail.com
-- 联系方式：davidyang042@gmail.com
 </details>
 
 
@@ -595,10 +538,7 @@ npm run dev
 </a>
 
 
-<details>
-  <summary>感谢<a href="https://api.chatfire.site/login?inviteCode=A15CD6A0">AI火宝</a>对本项目的赞助</summary>
-  “聚合全球多模型API服务商。更低价格享受安全、稳定且72小时链接全球最新模型的服务。”
-</details>
+感谢<a href="https://api.chatfire.site/login?inviteCode=A15CD6A0">AI火宝</a>对本项目的赞助
  
 </div>
 
