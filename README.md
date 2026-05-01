@@ -5,23 +5,17 @@
 </p>
 <p>
   <a href="https://trendshift.io/repositories/22056" target="_blank">
-    <img src="https://trendshift.io/api/badge/repositories/22056" alt="Anionex%2Fbanana-slides | Trendshift" width="360" height="79">
+    <img src="https://trendshift.io/api/badge/repositories/22056" alt="Anionex%2Fbanana-slides | Trendshift" width="265" height="58">
   </a>
   <a href="https://hellogithub.com/repository/Anionex/banana-slides" target="_blank">
-    <img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=c8a0ee51918e4353af08012b8472b85e&claim_uid=CtDTm2jbUHhVGBr&theme=neutral" alt="Featured｜HelloGitHub" width="360" height="78">
+    <img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=c8a0ee51918e4353af08012b8472b85e&claim_uid=CtDTm2jbUHhVGBr&theme=neutral" alt="Featured｜HelloGitHub" width="265" height="58">
   </a>
 </p>
-<br>
 <p>
-  <a href="https://bananaslides.online/"><b>🚀 在线 Demo</b></a>
-  &nbsp;•&nbsp;
-  <a href="https://docs.bananaslides.online/"><b>📖 文档</b></a>
-  &nbsp;•&nbsp;
   <a href="#-项目缘起"><b>简体中文</b></a>
   &nbsp;•&nbsp;
   <a href="README_EN.md"><b>English</b></a>
 </p>
-<br>
 <p>
   <a href="https://github.com/Anionex/banana-slides/stargazers"><img src="https://img.shields.io/github/stars/Anionex/banana-slides?style=flat-square&color=FFD700" alt="GitHub Stars"></a>
   <a href="https://github.com/Anionex/banana-slides/network"><img src="https://img.shields.io/github/forks/Anionex/banana-slides?style=flat-square&color=FFD700" alt="GitHub Forks"></a>
@@ -37,7 +31,11 @@
   <b>一个基于 nano banana pro 🍌 的原生 AI PPT 生成应用</b><br>
   <b>在几分钟内从想法到演示文稿，无需繁琐排版、口头提出修改，迈向真正的 "Vibe PPT"</b>
 </p>
-
+<p>
+  <a href="https://bananaslides.online/"><b>🚀 在线 Demo</b></a>
+  &nbsp;|&nbsp;
+  <a href="https://docs.bananaslides.online/"><b>📖 文档</b></a>
+</p>
 <p>
   如果该项目对你有用，欢迎 <b>Star 🌟</b> & <b>Fork 🍴</b>
 </p>
