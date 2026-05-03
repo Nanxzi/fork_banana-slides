@@ -49,6 +49,7 @@ check_ffmpeg_available = _tts_mod.check_ffmpeg_available
 check_ffmpeg_ass_filter_available = _tts_mod.check_ffmpeg_ass_filter_available
 get_audio_duration = _tts_mod.get_audio_duration
 KEN_BURNS_EFFECTS = _tts_mod.KEN_BURNS_EFFECTS
+KEN_BURNS_MAX_ZOOM = _tts_mod.KEN_BURNS_MAX_ZOOM
 composite_video = _tts_mod.composite_video
 _run_ffmpeg_command = _tts_mod._run_ffmpeg_command
 _wait_for_process_with_idle_watchdog = _tts_mod._wait_for_process_with_idle_watchdog
@@ -56,6 +57,7 @@ _split_narration_to_sentences = _tts_mod._split_narration_to_sentences
 _build_timed_subtitle_entries = _tts_mod._build_timed_subtitle_entries
 generate_ass_subtitle = _tts_mod.generate_ass_subtitle
 burn_subtitles = _tts_mod.burn_subtitles
+create_ken_burns_clip = _tts_mod.create_ken_burns_clip
 _MAX_SUBTITLE_SEGMENT_LENGTH = _tts_mod._MAX_SUBTITLE_SEGMENT_LENGTH
 _DEFAULT_SILENT_DURATION = _tts_mod._DEFAULT_SILENT_DURATION
 _FFMPEG_IDLE_TIMEOUT_SECONDS = _tts_mod._FFMPEG_IDLE_TIMEOUT_SECONDS
@@ -170,6 +172,64 @@ class TestKenBurnsEffects:
         assert KEN_BURNS_EFFECTS[2] == 'pan_left'
         assert KEN_BURNS_EFFECTS[3] == 'pan_right'
         assert KEN_BURNS_EFFECTS[4 % 4] == 'zoom_in'
+
+    def test_zoom_strength_is_conservative(self):
+        assert KEN_BURNS_MAX_ZOOM == pytest.approx(1.08)
+
+    @pytest.mark.parametrize(
+        ('effect_type', 'frame_index'),
+        [
+            ('zoom_in', -1),
+            ('zoom_out', 0),
+        ],
+    )
+    def test_zoom_effect_keeps_slide_corners_visible_with_real_ffmpeg(self, effect_type, frame_index):
+        """真实 FFmpeg/OpenCV 验证：缩放动效不能把整张 slide 的四角裁掉。"""
+        if not check_ffmpeg_available():
+            pytest.skip("ffmpeg not available")
+
+        cv2 = pytest.importorskip('cv2')
+        pil_image = pytest.importorskip('PIL.Image')
+        pil_draw = pytest.importorskip('PIL.ImageDraw')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = os.path.join(tmpdir, 'source.png')
+            video_path = os.path.join(tmpdir, f'{effect_type}.mp4')
+
+            image = pil_image.new('RGB', (320, 180), 'white')
+            draw = pil_draw.Draw(image)
+            draw.rectangle((0, 0, 319, 179), outline=(255, 0, 0), width=18)
+            image.save(image_path)
+
+            create_ken_burns_clip(
+                image_path,
+                video_path,
+                duration=0.6,
+                width=320,
+                height=180,
+                fps=12,
+                effect_type=effect_type,
+            )
+
+            capture = cv2.VideoCapture(video_path)
+            frames = []
+            while True:
+                ok, frame = capture.read()
+                if not ok:
+                    break
+                frames.append(frame)
+            capture.release()
+
+            assert frames, "Expected at least one rendered frame"
+            frame = frames[frame_index]
+            h, w = frame.shape[:2]
+            corner_points = [(6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)]
+
+            for x, y in corner_points:
+                blue, green, red = frame[y, x]
+                assert red > 120
+                assert red > green + 40
+                assert red > blue + 40
 
 
 class TestCompositeVideoConcatFile:
@@ -412,29 +472,31 @@ class TestNarrationPrompt:
 
     def test_prompt_contains_required_fields(self):
         prompt = get_narration_generation_prompt(
-            description_text='这是一个关于人工智能发展的介绍页面',
-            outline={'title': 'AI 发展历程', 'points': ['深度学习', '大语言模型']},
-            page_index=2,
-            total_pages=10,
+            pages=[{
+                'page_index': 2,
+                'title': 'AI 发展历程',
+                'points': ['深度学习', '大语言模型'],
+                'description_text': '这是一个关于人工智能发展的介绍页面',
+            }],
             language='zh',
         )
         assert 'AI 发展历程' in prompt
         assert '深度学习' in prompt
         assert '大语言模型' in prompt
         assert '2' in prompt
-        assert '10' in prompt
         assert '中文' in prompt or '全中文' in prompt
-        # 验证用户输入被 XML 标签隔离（防止 prompt injection）
         assert '<slide_description>' in prompt
         assert '</slide_description>' in prompt
         assert '<slide_title>' in prompt
 
     def test_english_prompt(self):
         prompt = get_narration_generation_prompt(
-            description_text='Introduction to machine learning',
-            outline={'title': 'ML Basics', 'points': ['Supervised', 'Unsupervised']},
-            page_index=1,
-            total_pages=5,
+            pages=[{
+                'page_index': 1,
+                'title': 'ML Basics',
+                'points': ['Supervised', 'Unsupervised'],
+                'description_text': 'Introduction to machine learning',
+            }],
             language='en',
         )
         assert 'English' in prompt
