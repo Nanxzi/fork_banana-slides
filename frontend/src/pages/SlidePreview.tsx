@@ -1234,6 +1234,26 @@ export const SlidePreview: React.FC = () => {
         }
       }
     } catch (error: any) {
+      let errorMessage = t('preview.messages.exportFailed');
+      const respData = error?.response?.data;
+
+      if (respData) {
+        if (respData.error?.message) {
+          errorMessage = respData.error.message;
+        } else if (respData.message) {
+          errorMessage = respData.message;
+        } else if (respData.error) {
+          errorMessage =
+            typeof respData.error === 'string'
+              ? respData.error
+              : respData.error.message || errorMessage;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      const normalizedErrorMessage = normalizeErrorMessage(errorMessage);
+
       // Update task as failed
       addTask({
         id: exportTaskId,
@@ -1241,10 +1261,10 @@ export const SlidePreview: React.FC = () => {
         projectId,
         type: type as ExportTaskType,
         status: 'FAILED',
-        errorMessage: normalizeErrorMessage(error.message || t('preview.messages.exportFailed')),
+        errorMessage: normalizedErrorMessage,
         pageIds: pageIds,
       });
-      show({ message: normalizeErrorMessage(error.message || t('preview.messages.exportFailed')), type: 'error' });
+      show({ message: normalizedErrorMessage, type: 'error' });
     }
   };
 

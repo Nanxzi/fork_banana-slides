@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import * as api from '@/api/endpoints';
 import { devLog } from '@/utils/logger';
 import { getT } from '@/utils/i18nHelper';
+import { normalizeErrorMessage } from '@/utils';
 
 const exportI18n = {
   zh: { exportStore: { exportFailed: '导出失败', pollFailed: '轮询失败' } },
@@ -154,7 +155,10 @@ export const useExportTasksStore = create<ExportTasksState>()(
               updates.completedAt = new Date().toISOString();
               get().updateTask(id, updates);
             } else if (task.status === 'FAILED') {
-              updates.errorMessage = task.error_message || task.error || t('exportStore.exportFailed');
+              const taskErrorMessage = task.error_message
+                || (typeof task.error === 'string' ? task.error : task.error?.message)
+                || t('exportStore.exportFailed');
+              updates.errorMessage = normalizeErrorMessage(taskErrorMessage);
               updates.completedAt = new Date().toISOString();
               get().updateTask(id, updates);
             } else if (task.status === 'PENDING' || task.status === 'RUNNING' || task.status === 'PROCESSING') {
@@ -166,7 +170,7 @@ export const useExportTasksStore = create<ExportTasksState>()(
             console.error('[ExportTasksStore] Poll error:', error);
             get().updateTask(id, {
               status: 'FAILED',
-              errorMessage: error.message || t('exportStore.pollFailed'),
+              errorMessage: normalizeErrorMessage(error.message || t('exportStore.pollFailed')),
               completedAt: new Date().toISOString(),
             });
           }
@@ -202,4 +206,3 @@ export const useExportTasksStore = create<ExportTasksState>()(
     }
   )
 );
-

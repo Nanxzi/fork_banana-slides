@@ -19,6 +19,7 @@ const exportI18n = {
       styleExtractionFailed: "样式提取失败 ({{count}} 个)", textRenderFailed: "文本渲染失败 ({{count}} 个)",
       moreItems: "... 还有 {{count}} 条", exportFailed: "导出失败", preparing: "准备中...",
       settingsTip: "可在「项目设置 → 导出设置」中调整配置或开启「返回半成品」选项",
+      codexReconnectTip: "如果是 Codex 登录过期或连接中断，也可以前往设置重新登录 OpenAI 账号后再试",
       exportedFiles: "已导出文件",
     },
     shared: { historyRecords: "历史记录" }
@@ -33,6 +34,7 @@ const exportI18n = {
       styleExtractionFailed: "Style extraction failed ({{count}})", textRenderFailed: "Text render failed ({{count}})",
       moreItems: "... {{count}} more", exportFailed: "Export Failed", preparing: "Preparing...",
       settingsTip: "Adjust settings in \"Project Settings → Export Settings\" or enable \"Allow Partial Results\"",
+      codexReconnectTip: "If Codex login expired or the connection was interrupted, reconnect your OpenAI account in Settings and try again.",
       exportedFiles: "Exported Files",
     },
     shared: { historyRecords: "History Records" }
@@ -308,6 +310,13 @@ const TaskItem: React.FC<{ task: ExportTask; pages: Page[]; onRemove: () => void
               <Settings size={12} />
               <span>{t('export.settingsTip')}</span>
             </div>
+
+            {task.errorMessage.toLowerCase().includes('codex') && (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-foreground-tertiary">
+                <Settings size={12} />
+                <span>{t('export.codexReconnectTip')}</span>
+              </div>
+            )}
           </div>
         )}
         
