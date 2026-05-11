@@ -234,7 +234,7 @@ cd banana-slides
 cp .env.example .env
 ```
 
-**（可选， 也可以启动后在用户界面配置）** 编辑 `.env` 文件，配置必要的环境变量：
+**（可选， 也可以启动后在用户界面配置，[教程可点击此处](https://ziy68cvfvu3.feishu.cn/wiki/GiNawdmpiinSRqkGspocqEWAnkh?from=from_copylink )）** 编辑 `.env` 文件，配置必要的环境变量：
 
 <details>
 <summary>点击展开详情</summary>
