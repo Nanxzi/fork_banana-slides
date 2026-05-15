@@ -7,6 +7,7 @@
   <a href="https://trendshift.io/repositories/22056" target="_blank">
     <img src="https://trendshift.io/api/badge/repositories/22056" alt="Anionex%2Fbanana-slides | Trendshift" width="265" height="58">
   </a>
+  <br>
   <a href="https://hellogithub.com/repository/Anionex/banana-slides" target="_blank">
     <img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=c8a0ee51918e4353af08012b8472b85e&claim_uid=CtDTm2jbUHhVGBr&theme=neutral" alt="Featured｜HelloGitHub" width="265" height="58">
   </a>
@@ -457,6 +458,7 @@ npm install
 #### 启动后端服务
 > （可选）如果本地已有重要数据，升级前建议先备份数据库：  
 > `cp backend/instance/database.db backend/instance/database.db.bak`
+> 备注： 默认配置下，模板、素材、成品都在uploads/文件夹中
 
 ```bash
 cd backend

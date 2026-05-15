@@ -145,6 +145,18 @@ def _smart_merge_pages(project_id, pages_data):
             'title': page_data.get('title'),
             'points': page_data.get('points', [])
         })
+        description_text = page_data.get('description_text')
+        if description_text:
+            desc_content = {
+                'text': description_text,
+                'generated_at': datetime.utcnow().isoformat(),
+            }
+            if page_data.get('extra_fields'):
+                desc_content['extra_fields'] = page_data['extra_fields']
+            page.set_description_content(desc_content)
+            page.status = 'DESCRIPTION_GENERATED'
+        elif not page.description_content:
+            page.status = 'DRAFT'
         pages_list.append(page)
 
     for p in old_pages[len(pages_data):]:
@@ -568,6 +580,8 @@ def generate_outline_stream(project_id):
                         'title': page_data.get('title', ''),
                         'points': page_data.get('points', []),
                         'part': page_data.get('part'),
+                        'description_text': page_data.get('description_text'),
+                        'extra_fields': page_data.get('extra_fields'),
                     })
 
                 # Handle lock_page_count: pad with blank pages if needed

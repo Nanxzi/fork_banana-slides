@@ -80,6 +80,141 @@ class TestProjectGet:
         assert response.status_code in [400, 404]
 
 
+class TestProjectOutlineStream:
+    """流式大纲生成测试"""
+
+    def test_description_stream_prompt_uses_latest_description_format(self):
+        """从描述生成的 SSE prompt 应对齐最新页面描述格式，而不是旧版页面标题/页面文字格式"""
+        from services.ai_service import ProjectContext
+        from services.prompts import get_description_to_outline_prompt_markdown
+
+        context = ProjectContext({
+            'creation_type': 'descriptions',
+            'description_text': '第一页：介绍主题',
+        })
+
+        prompt = get_description_to_outline_prompt_markdown(
+            context,
+            language='zh',
+            extra_fields=['视觉元素'],
+        )
+
+        assert '<!-- PAGE_DESCRIPTION -->' in prompt
+        assert '--- 页面文字 ---' in prompt
+        assert '--- 页面文字结束 ---' in prompt
+        assert '图片素材：' in prompt
+        assert '视觉元素：' in prompt
+        assert '页面标题：' not in prompt
+
+    def test_outline_stream_parses_legacy_outline_only_markdown(self):
+        """普通大纲 SSE 仍兼容只含标题和要点的 Markdown 输出"""
+        from services.ai_service import AIService, ProjectContext
+
+        class FakeTextProvider:
+            def generate_text_stream(self, prompt, thinking_budget=0):
+                yield '# 第一章\n## 第一页\n- 要点1\n一句补充\n## 第二页\n- 要点2\n<!-- END -->'
+
+        service = AIService(text_provider=FakeTextProvider(), image_provider=None, caption_provider=None)
+        context = ProjectContext({
+            'creation_type': 'outline',
+            'outline_text': '第一页\n- 要点1\n第二页\n- 要点2',
+        })
+
+        pages = list(service.generate_outline_stream(context, language='zh'))
+
+        assert pages[:-1] == [
+            {'title': '第一页', 'points': ['要点1', '一句补充'], 'part': '第一章'},
+            {'title': '第二页', 'points': ['要点2'], 'part': '第一章'},
+        ]
+        assert pages[-1] == {'__stream_complete__': True}
+
+    def test_description_stream_parser_binds_description_to_same_page(self):
+        """描述 SSE 新格式应把同一页的大纲和页面描述绑定在同一个结果里"""
+        from services.ai_service import AIService, ProjectContext
+
+        class FakeTextProvider:
+            def generate_text_stream(self, prompt, thinking_budget=0):
+                yield (
+                    '## 第一页\n'
+                    '<!-- OUTLINE_POINTS -->\n'
+                    '- Establish the page purpose and connect the audience from context to the main argument.\n'
+                    '<!-- PAGE_DESCRIPTION -->\n'
+                    '--- 页面文字 ---\n'
+                    '- 背景和目标\n'
+                    '\n--- 页面文字结束 ---\n'
+                    '\n图片素材：\n'
+                    '使用一张简洁的背景图\n'
+                    '\n视觉元素：关键指标卡片\n'
+                    '<!-- PAGE_END -->\n'
+                    '<!-- END -->'
+                )
+
+        service = AIService(text_provider=FakeTextProvider(), image_provider=None, caption_provider=None)
+        context = ProjectContext({
+            'creation_type': 'descriptions',
+            'description_text': '第一页：背景和目标',
+        })
+
+        pages = list(service.generate_outline_stream(context, language='zh'))
+
+        assert pages[0]['title'] == '第一页'
+        assert pages[0]['points'] == ['Establish the page purpose and connect the audience from context to the main argument.']
+        assert '--- 页面文字 ---' in pages[0]['description_text']
+        assert '页面标题：' not in pages[0]['description_text']
+        assert pages[0]['extra_fields']['视觉元素'] == '关键指标卡片'
+        assert pages[-1] == {'__stream_complete__': True}
+
+    def test_description_stream_persists_outline_and_description(self, client, app, monkeypatch):
+        """从描述生成应通过同一条 SSE 流落库大纲和页面描述，避免两次拆分页数不一致"""
+        response = client.post('/api/projects', json={
+            'creation_type': 'descriptions',
+            'description_text': '第一页：介绍主题。第二页：展开方案。'
+        })
+        data = assert_success_response(response, 201)
+        project_id = data['data']['project_id']
+
+        class FakeAIService:
+            def generate_outline_stream(self, project_context, language=None):
+                yield {
+                    'title': '介绍主题',
+                    'points': ['背景', '目标'],
+                    'description_text': '--- 页面文字 ---\n- 背景\n- 目标\n\n--- 页面文字结束 ---',
+                    'extra_fields': {'视觉元素': '背景图'},
+                }
+                yield {
+                    'title': '展开方案',
+                    'points': ['路径', '结果'],
+                    'description_text': '--- 页面文字 ---\n- 路径\n- 结果\n\n--- 页面文字结束 ---',
+                }
+                yield {'__stream_complete__': True}
+
+        monkeypatch.setattr('controllers.project_controller.get_ai_service', lambda: FakeAIService())
+
+        stream_response = client.post(
+            f'/api/projects/{project_id}/generate/outline/stream',
+            json={'language': 'zh'},
+            buffered=True,
+        )
+        assert stream_response.status_code == 200
+        body = stream_response.get_data(as_text=True)
+
+        assert 'event: page' in body
+        assert 'description_text' in body
+        assert 'event: done' in body
+
+        with app.app_context():
+            from models import Page, Project
+            project = Project.query.get(project_id)
+            pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
+
+            assert project.status == 'DESCRIPTIONS_GENERATED'
+            assert len(pages) == 2
+            assert pages[0].get_outline_content() == {'title': '介绍主题', 'points': ['背景', '目标']}
+            assert pages[0].get_description_content()['text'].startswith('--- 页面文字 ---')
+            assert pages[0].get_description_content()['extra_fields'] == {'视觉元素': '背景图'}
+            assert pages[1].get_outline_content()['title'] == '展开方案'
+
+
 class TestProjectUpdate:
     """项目更新测试"""
     

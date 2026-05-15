@@ -669,12 +669,7 @@ export const Home: React.FC = () => {
         devLog('No materials to associate');
       }
       
-      if (activeTab === 'idea' || activeTab === 'outline') {
-        navigate(`/project/${projectId}/outline`);
-      } else if (activeTab === 'description') {
-        // 从描述生成：直接跳到描述生成页（因为已经自动生成了大纲和描述）
-        navigate(`/project/${projectId}/detail`);
-      }
+      navigate(`/project/${projectId}/outline`);
     } catch (error: any) {
       console.error('创建项目失败:', error);
       const msg = error?.response?.data?.error?.message || error?.message || t('home.messages.projectCreateFailed');

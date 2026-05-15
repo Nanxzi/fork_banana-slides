@@ -445,27 +445,63 @@ Now extract the outline structure from the description text above. Return only t
     return _build_prompt(prompt, project_context.reference_files_content, tag='get_description_to_outline_prompt')
 
 
-def get_description_to_outline_prompt_markdown(project_context: 'ProjectContext', language: str = None) -> str:
-    """从描述文本解析出大纲的 prompt（Markdown 输出，用于流式生成）"""
+def get_description_to_outline_prompt_markdown(project_context: 'ProjectContext',
+                                               language: str = None,
+                                               extra_fields: list = None) -> str:
+    """从描述文本解析出逐页大纲和页面描述的 prompt（Markdown 输出，用于流式生成）"""
     description_text = project_context.description_text or ""
+    detail_level = "default"
+    description_format = f"""\
+--- 页面文字 ---
+[此处使用 markdown 直接放置正文文字，细致程度要求：{DETAIL_LEVEL_SPECS[detail_level]}。可包含 LaTeX 公式、表格等内容，不要重复添加页面标题，不要把用户的设计意图显式地放在页面文字中。]
+
+--- 页面文字结束 ---
+
+图片素材：
+[如果参考文件或用户输入中存在相关图片素材，以 markdown 格式引用，如 ![描述](/files/xxx/image.png)；否则省略此部分。]
+{_format_extra_field_instructions(extra_fields)}
+"""
 
     prompt = (f"""\
-You are a helpful assistant that analyzes a user-provided PPT description text and extracts the outline structure.
+You are a helpful assistant that analyzes a user-provided PPT description text and converts it into page-by-page slide structure.
 
 The user has provided the following description text:
 
 {description_text}
 
-Your task is to extract the outline structure (titles and key points) for each page.
+Your task is to first split the description into pages, then produce the outline and the page description for each page from that same split.
+Each output page must contain both an outline-level narrative structure and the page description. The page count is defined by your page split; do not run a separate outline-only split.
+The parser depends on the HTML comment markers below. Do not translate or modify them.
 
 Output rules:
 - Use `# Part Name` for major sections (only if the text has clear parts/chapters)
 - Use `## Page Title` for each page
-- Use `- ` bullet points for key points under each page
-- Preserve the logical structure from the original text
+- Under each page, output `<!-- OUTLINE_POINTS -->` followed by one or two `- ` bullet points that describe what the slide should cover at the outline level
+- Then output `<!-- PAGE_DESCRIPTION -->` followed by the corresponding page description text using this format:
+{description_format}
+- Preserve layout, style, material, and content details in the page description
+- Keep the outline points at the same level as normal idea-generated outlines: focus on slide intent, narrative role, topic, logic, transition, or design purpose
+- Do not put final slide copy, exact page text, long evidence lists, or detailed visual/layout instructions in the outline points
+- Put concrete page text, data, examples, layout, style, and material details only in the page description section
+- Use `<!-- PAGE_END -->` after each page
 - Do NOT wrap in code blocks or add any extra text
 
-Now extract the outline structure from the description text above. Output `<!-- END -->` on the last line when finished.
+Example:
+## 市场机会概览
+<!-- OUTLINE_POINTS -->
+- Establish why this opportunity matters and how it connects the audience from macro trend to business relevance.
+<!-- PAGE_DESCRIPTION -->
+--- 页面文字 ---
+- 过去三年目标市场保持高速增长
+- 需求从单点工具转向端到端解决方案
+
+--- 页面文字结束 ---
+
+图片素材：
+使用趋势图展示增长曲线，整体保持专业克制的商务风格
+<!-- PAGE_END -->
+
+Now split the description text above and output the page-by-page structure. Output `<!-- END -->` on the last line when finished.
 {get_language_instruction(language)}
 """)
 

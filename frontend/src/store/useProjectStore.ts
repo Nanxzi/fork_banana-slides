@@ -250,25 +250,7 @@ const debouncedUpdatePage = debounce(
         }
       }
 
-      // 4. 根据类型调用 AI 生成，失败时回滚项目
-      const generateWithRollback = async (fn: () => Promise<any>, label: string) => {
-        try {
-          await fn();
-          devLog(`[初始化项目] ${label}完成`);
-        } catch (error: any) {
-          console.error(`[初始化项目] ${label}失败:`, error);
-          try { await api.deleteProject(projectId); } catch (e: any) { console.error(`[初始化项目] 回滚失败，未能删除项目 ${projectId}:`, e); }
-          throw error;
-        }
-      };
-
-      if (type === 'outline') {
-        await generateWithRollback(() => api.generateOutline(projectId), '生成大纲');
-      } else if (type === 'description') {
-        await generateWithRollback(() => api.generateFromDescription(projectId, content), '从描述生成大纲和页面描述');
-      }
-
-      // 5. 获取完整项目信息
+      // 4. 获取完整项目信息。大纲/描述入口的 AI 生成由大纲页的 SSE 流程接管。
       const projectResponse = await api.getProject(projectId);
       const project = normalizeProject(projectResponse.data);
 
@@ -629,8 +611,11 @@ const debouncedUpdatePage = debounce(
               id: `streaming-${page.index}`,
               order_index: page.index,
               outline_content: { title: page.title, points: page.points },
+              description_content: page.description_text
+                ? { text: page.description_text, ...(page.extra_fields ? { extra_fields: page.extra_fields } : {}) }
+                : undefined,
               part: page.part,
-              status: 'DRAFT',
+              status: page.description_text ? 'DESCRIPTION_GENERATED' : 'DRAFT',
             };
             set({
               currentProject: { ...proj, pages: [...proj.pages, tempPage] },
