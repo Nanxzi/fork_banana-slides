@@ -3,6 +3,10 @@
 """
 
 import pytest
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 from conftest import assert_success_response, assert_error_response
 
 
@@ -78,6 +82,136 @@ class TestProjectGet:
         
         # 可能返回404或400
         assert response.status_code in [400, 404]
+
+
+class TestResourceConcurrency:
+    def test_image_limiter_allows_more_than_global_four_workers(self, app):
+        """图片资源并发应由 image limiter 控制，而不是被旧的全局 4 worker 提前卡住。"""
+        from services.task_manager import (
+            TaskManager,
+            ResourceLimiter,
+        )
+
+        limiter = ResourceLimiter("image-test", 8)
+        executor = ThreadPoolExecutor(max_workers=10)
+        started = []
+        active = 0
+        peak_active = 0
+        gate = threading.Event()
+        state_lock = threading.Lock()
+
+        def worker(i: int):
+            nonlocal active, peak_active
+            with limiter.slot(f"page-{i}"):
+                with state_lock:
+                    started.append(i)
+                    active += 1
+                    peak_active = max(peak_active, active)
+                gate.wait(timeout=5)
+                with state_lock:
+                    active -= 1
+
+        futures = [executor.submit(worker, i) for i in range(8)]
+
+        deadline = time.time() + 2
+        while time.time() < deadline:
+            with state_lock:
+                if len(started) == 8:
+                    break
+            time.sleep(0.05)
+
+        gate.set()
+        for future in futures:
+            future.result(timeout=5)
+        executor.shutdown(wait=True)
+
+        assert len(started) == 8
+        assert peak_active == 8
+
+    def test_shared_task_pool_no_longer_caps_single_page_image_tasks_at_four(self, app):
+        """即使共享后台池只有 4 个旧行为，图片任务也应由 image limiter 决定并发。"""
+        from models import db, Project, Page
+        from controllers import page_controller as page_controller_module
+        from services import task_manager as task_manager_module
+        from services.task_manager import sync_resource_limits
+
+        class SlowAIService:
+            def extract_image_urls_from_markdown(self, _text):
+                return []
+
+            def generate_image_prompt(self, *args, **kwargs):
+                return "prompt"
+
+            def generate_image(self, *args, **kwargs):
+                time.sleep(0.3)
+                from PIL import Image
+                return Image.new('RGB', (32, 32), color='blue')
+
+        with app.app_context():
+            app.config['MAX_IMAGE_WORKERS'] = 8
+            app.config['MAX_DESCRIPTION_WORKERS'] = 2
+            sync_resource_limits(2, 8)
+
+            project = Project(
+                id='proj-concurrency',
+                creation_type='idea',
+                idea_prompt='test',
+                template_style='clean',
+                image_aspect_ratio='16:9',
+                status='DRAFT',
+            )
+            db.session.add(project)
+
+            pages = []
+            for i in range(5):
+                page = Page(project_id=project.id, order_index=i, status='DESCRIPTION_GENERATED')
+                page.set_outline_content({'title': f'Page {i+1}', 'points': []})
+                page.set_description_content({'text': f'Description {i+1}'})
+                db.session.add(page)
+                pages.append(page)
+
+            db.session.commit()
+
+            client = app.test_client()
+            task_ids = []
+
+            def fake_save_image_with_version(_image, _project_id, _page_id, _file_service, page_obj=None, image_format='PNG'):
+                if page_obj:
+                    page_obj.generated_image_path = f"generated/{_page_id}.png"
+                    page_obj.status = 'COMPLETED'
+                return (f"generated/{_page_id}.png", 1)
+
+            with (
+                patch.object(page_controller_module, 'get_ai_service', return_value=SlowAIService()),
+                patch.object(task_manager_module, 'save_image_with_version', side_effect=fake_save_image_with_version),
+            ):
+                for page in pages:
+                    response = client.post(
+                        f'/api/projects/{project.id}/pages/{page.id}/generate/image',
+                        json={'force_regenerate': True},
+                    )
+                    data = assert_success_response(response, 202)
+                    task_ids.append(data['data']['task_id'])
+
+                deadline = time.time() + 1.5
+                processed = 0
+                while time.time() < deadline:
+                    statuses = [client.get(f'/api/projects/{project.id}/tasks/{task_id}').get_json()['data']['status'] for task_id in task_ids]
+                    processed = sum(status in {'PROCESSING', 'COMPLETED'} for status in statuses)
+                    if processed >= 5:
+                        break
+                    time.sleep(0.05)
+
+                assert processed >= 5
+
+                completion_deadline = time.time() + 3
+                while time.time() < completion_deadline:
+                    statuses = [client.get(f'/api/projects/{project.id}/tasks/{task_id}').get_json()['data']['status'] for task_id in task_ids]
+                    if all(status == 'COMPLETED' for status in statuses):
+                        break
+                    time.sleep(0.05)
+
+                assert all(status == 'COMPLETED' for status in statuses)
 
 
 class TestProjectOutlineStream:

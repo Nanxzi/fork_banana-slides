@@ -117,6 +117,7 @@ interface ProjectState {
   generateDescriptions: (detailLevel?: string) => Promise<void>;
   generatePageDescription: (pageId: string, detailLevel?: string) => Promise<void>;
   regenerateRenovationPage: (pageId: string, keepLayout?: boolean) => Promise<void>;
+  generatePageImage: (pageId: string, forceRegenerate?: boolean) => Promise<void>;
   generateImages: (pageIds?: string[]) => Promise<void>;
   editPageImage: (
     pageId: string,
@@ -958,6 +959,43 @@ const debouncedUpdatePage = debounce(
     } catch (error: any) {
       await get().syncProject();
       set({ error: normalizeErrorMessage(error.message || t('store.regenerateFailed')) });
+      throw error;
+    }
+  },
+
+  // 生成单页图片（用于预览页的手动重新生成）
+  generatePageImage: async (pageId: string, forceRegenerate: boolean = false) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    if (get().pageGeneratingTasks[pageId]) {
+      devLog(`[单页生成] 页面 ${pageId} 正在生成中，跳过重复请求`);
+      return;
+    }
+
+    set({ error: null, warningMessage: null });
+
+    try {
+      const response = await api.generatePageImage(currentProject.id, pageId, forceRegenerate);
+      const taskId = response.data?.task_id;
+
+      if (taskId) {
+        devLog(`[单页生成] 收到 task_id: ${taskId}，开始轮询页面 ${pageId}`);
+        set((state) => ({
+          pageGeneratingTasks: {
+            ...state.pageGeneratingTasks,
+            [pageId]: taskId,
+          },
+        }));
+
+        await get().syncProject();
+        get().pollImageTask(taskId, [pageId]);
+      } else {
+        await get().syncProject();
+      }
+    } catch (error: any) {
+      console.error('[单页生成] 启动失败:', error);
+      await get().syncProject();
       throw error;
     }
   },

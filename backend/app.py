@@ -237,6 +237,8 @@ def _load_settings_to_config(app):
         img_workers = settings.max_image_workers or Config.MAX_IMAGE_WORKERS
         app.config['MAX_DESCRIPTION_WORKERS'] = desc_workers
         app.config['MAX_IMAGE_WORKERS'] = img_workers
+        from services.task_manager import sync_resource_limits
+        sync_resource_limits(desc_workers, img_workers)
         logging.info(f"Loaded worker settings: desc={desc_workers}, img={img_workers}")
 
         # Load model settings (FIX for Issue #136: these were missing before)

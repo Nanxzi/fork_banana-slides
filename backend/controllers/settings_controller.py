@@ -685,6 +685,11 @@ def _sync_settings_to_config(settings: Settings):
     # Sync worker settings (fall back to Config when NULL)
     current_app.config["MAX_DESCRIPTION_WORKERS"] = settings.max_description_workers or Config.MAX_DESCRIPTION_WORKERS
     current_app.config["MAX_IMAGE_WORKERS"] = settings.max_image_workers or Config.MAX_IMAGE_WORKERS
+    from services.task_manager import sync_resource_limits
+    sync_resource_limits(
+        current_app.config["MAX_DESCRIPTION_WORKERS"],
+        current_app.config["MAX_IMAGE_WORKERS"],
+    )
     logger.info(f"Updated worker settings: desc={current_app.config['MAX_DESCRIPTION_WORKERS']}, img={current_app.config['MAX_IMAGE_WORKERS']}")
 
     # Sync MinerU settings (fall back to Config defaults when NULL)
