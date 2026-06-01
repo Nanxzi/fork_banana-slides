@@ -9,6 +9,20 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+def _is_path_within(path: Path, root: Path) -> bool:
+    try:
+        real_root = os.path.realpath(root)
+        return os.path.commonpath([os.path.realpath(path), real_root]) == real_root
+    except ValueError:
+        return False
+
+
+def _default_project_root() -> Path:
+    current_file = Path(__file__).resolve()
+    backend_dir = current_file.parent.parent
+    return backend_dir.parent
+
+
 def convert_mineru_path_to_local(mineru_path: str, project_root: Optional[Path] = None) -> Optional[Path]:
     """
     将 /files/mineru/{extract_id}/{rel_path} 格式的路径转换为本地文件系统路径
@@ -25,17 +39,18 @@ def convert_mineru_path_to_local(mineru_path: str, project_root: Optional[Path] 
             return None
         
         # Remove '/files/mineru/' prefix
-        rel_path = mineru_path.replace('/files/mineru/', '')
+        rel_path = mineru_path[len('/files/mineru/'):].lstrip('/\\')
         
         # Get project root if not provided
         if project_root is None:
-            # Navigate to project root (assuming this file is in backend/utils/)
-            current_file = Path(__file__).resolve()
-            backend_dir = current_file.parent.parent
-            project_root = backend_dir.parent
+            project_root = _default_project_root()
         
         # Construct full path: {project_root}/uploads/mineru_files/{rel_path}
-        local_path = project_root / 'uploads' / 'mineru_files' / rel_path
+        mineru_root = project_root / 'uploads' / 'mineru_files'
+        local_path = Path(os.path.realpath(mineru_root / rel_path))
+        if not _is_path_within(local_path, mineru_root):
+            logger.warning(f"Path traversal attempt blocked for MinerU path: {mineru_path}")
+            return None
         
         return local_path
     except Exception as e:
@@ -63,13 +78,21 @@ def find_mineru_file_with_prefix(mineru_path: str, project_root: Optional[Path] 
     
     if local_path is None:
         return None
+    if project_root is None:
+        project_root = _default_project_root()
+    mineru_root = project_root / 'uploads' / 'mineru_files'
     
     # Direct file matching
     if local_path.exists() and local_path.is_file():
+        if not _is_path_within(local_path, mineru_root):
+            return None
         return local_path
     
     # Try prefix match using the generic function
-    return find_file_with_prefix(local_path)
+    matched_path = find_file_with_prefix(local_path)
+    if matched_path and _is_path_within(matched_path, mineru_root):
+        return Path(os.path.realpath(matched_path))
+    return None
 
 
 def find_file_with_prefix(file_path: Path) -> Optional[Path]:
@@ -109,4 +132,3 @@ def find_file_with_prefix(file_path: Path) -> Optional[Path]:
                 logger.warning(f"Failed to list directory {dirpath}: {str(e)}")
     
     return None
-

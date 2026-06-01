@@ -947,17 +947,24 @@ class AIService:
                         elif ref_img.startswith('/files/'):
                             # 通用 /files/ 路径（materials、项目文件等），转换为文件系统路径
                             upload_folder = get_config().UPLOAD_FOLDER
-                            relative_path = ref_img[len('/files/'):].lstrip('/')
-                            local_path = os.path.abspath(os.path.join(upload_folder, relative_path))
-                            if not local_path.startswith(os.path.abspath(upload_folder)):
+                            upload_folder_real = os.path.realpath(upload_folder)
+                            relative_path = ref_img[len('/files/'):].lstrip('/\\')
+                            local_path = os.path.realpath(os.path.join(upload_folder, relative_path))
+                            try:
+                                is_inside_upload_folder = (
+                                    os.path.commonpath([local_path, upload_folder_real]) == upload_folder_real
+                                )
+                            except ValueError:
+                                is_inside_upload_folder = False
+                            if not is_inside_upload_folder:
                                 logger.warning(f"Path traversal attempt blocked: {ref_img}, skipping...")
-                            elif os.path.exists(local_path):
+                            elif os.path.isfile(local_path):
                                 opened = Image.open(local_path)
                                 ref_images.append(opened)
                                 owned_images.append(opened)
                                 logger.debug(f"Loaded image from local path: {local_path}")
                             else:
-                                logger.warning(f"Local file not found: {local_path} (from {ref_img}), skipping...")
+                                logger.warning(f"Local file not found or not a file: {local_path} (from {ref_img}), skipping...")
                         else:
                             logger.warning(f"Invalid image reference: {ref_img}, skipping...")
 
