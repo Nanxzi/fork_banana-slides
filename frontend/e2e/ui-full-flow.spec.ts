@@ -626,8 +626,39 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // ====================================
     console.log('📦 Step 14: Exporting PPT file...')
     
-    // Setup download handler
-    const downloadPromise = page.waitForEvent('download', { timeout: 60000 })
+    const responsePromise = new Promise<{ kind: 'response', payload: { url: string, headers: Record<string, string> } }>((resolve, reject) => {
+      const onResponse = (response: any) => {
+        try {
+          const pathname = new URL(response.url()).pathname
+          const isPptxFileResponse = /\/files\/.*\/exports\/.*\.pptx/.test(pathname)
+          if (
+            response.request().method() === 'GET' &&
+            response.status() === 200 &&
+            isPptxFileResponse
+          ) {
+            page.context().off('response', onResponse)
+            clearTimeout(timeoutId)
+            resolve({
+              kind: 'response' as const,
+              payload: {
+                url: response.url(),
+                headers: response.headers()
+              }
+            })
+          }
+        } catch (error) {
+          // Ignore parse/URL errors and continue waiting
+          void error
+        }
+      }
+
+      const timeoutId = setTimeout(() => {
+        page.context().off('response', onResponse)
+        reject(new Error('Timeout waiting for PPTX export response'))
+      }, 60000)
+
+      page.context().on('response', onResponse)
+    })
     
     // Step 1: Wait for export button to be enabled (it's disabled until all images are generated)
     const exportBtn = page.locator('button:has-text("导出")')
@@ -645,14 +676,50 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     await exportPptxBtn.waitFor({ state: 'visible', timeout: 5000 })
     await exportPptxBtn.click()
     console.log('✓ Clicked "导出为 PPTX" button\n')
+
+    // Step 3: In the PPTX export settings panel, click "开始导出"
+    // The dropdown only opens export options; actual download request is sent after clicking this button.
+    await expect(page.getByText('PPTX 导出设置')).toBeVisible({ timeout: 5000 })
+    await page.getByRole('button', { name: '开始导出' }).click()
+    console.log('✓ Clicked "开始导出" button')
     
-    // Wait for download to complete
+    // Wait for download to complete (prefer download event, fallback to direct response body)
     console.log('⏳ Waiting for PPT file download...')
-    const download = await downloadPromise
+    const downloadResult = await Promise.any([
+      page.context().waitForEvent('download', { timeout: 60000 }).then((download) => ({
+        kind: 'download' as const,
+        payload: download
+      })),
+      responsePromise
+    ]).catch((error) => {
+      throw new Error(`Timeout waiting for PPT export: ${error instanceof Error ? error.message : 'unknown error'}`)
+    })
     
     // Save file
-    const downloadPath = path.join('test-results', 'e2e-test-output.pptx')
-    await download.saveAs(downloadPath)
+    let downloadPath = path.join('test-results', 'e2e-test-output.pptx')
+    if (downloadResult.kind === 'download') {
+      const suggestedFilename = downloadResult.payload.suggestedFilename?.()
+      if (suggestedFilename) {
+        downloadPath = path.join('test-results', path.basename(suggestedFilename))
+      }
+      await downloadResult.payload.saveAs(downloadPath)
+    } else {
+      const requestResponse = await page.request.get(downloadResult.payload.url)
+      if (!requestResponse.ok()) {
+        throw new Error(`Fallback export response request failed: HTTP ${requestResponse.status()}`)
+      }
+      const body = Buffer.from(await requestResponse.body())
+      const contentDisposition = downloadResult.payload.headers['content-disposition'] || requestResponse.headers()['content-disposition'] || ''
+      const filenameMatch = /filename\*?=['"]?(?:UTF-8''([^;"']+)|([^;"']+))/i.exec(contentDisposition)
+      const encodedFilename = filenameMatch?.[1] || filenameMatch?.[2]
+      if (encodedFilename) {
+        const decoded = decodeURIComponent(encodedFilename.replace(/"/g, '').replace(/^UTF-8''/i, ''))
+        if (decoded.trim().toLowerCase().endsWith('.pptx')) {
+          downloadPath = path.join('test-results', path.basename(decoded))
+        }
+      }
+      await fs.promises.writeFile(downloadPath, body)
+    }
     
     // Verify file exists and is not empty
     const fileExists = fs.existsSync(downloadPath)

@@ -271,6 +271,10 @@ SENSENOVA_API_KEY=your-sensenova-api-key      # 商汤日日新
 MINIMAX_API_KEY=your-minimax-api-key          # MiniMax
 ...
 ```
+
+> Banana Slides explicitly packages the LazyLLM online provider SDKs used by domestic vendors:
+> `volcengine-python-sdk[ark]` for Doubao, `dashscope` for Qwen/Wanxiang, and `zhipuai` for GLM/Zhipu.
+> LazyLLM also exposes `lazyllm install online-advanced`, but the PyPI wheel may not publish that group as a standard install extra, so Docker/prebuilt images rely on these explicit dependencies instead.
   
 </details>
 
@@ -311,6 +315,8 @@ docker compose -f docker-compose.prod.yml up -d
 镜像名称：
 - `anoinex/banana-slides-frontend:latest`
 - `anoinex/banana-slides-backend:latest`
+
+启动后可在应用内进入 **设置 → 关于 → 检查更新**，应用会根据当前版本 SHA 判断是否已有可用更新；源码运行时也会用当前 Git SHA 参与判断。
 
 **从头构建镜像**
 
@@ -358,6 +364,8 @@ docker compose down
 6. **更新项目**
 
 **使用预构建镜像（docker-compose.prod.yml）**
+
+也可以先在应用内进入 **设置 → 关于 → 检查更新** 查看是否已有新版本。
 
 ```bash
 docker compose -f docker-compose.prod.yml pull
@@ -483,11 +491,11 @@ React 18 + TypeScript + Vite 5 + Zustand
 Python 3.10+ + Flask 3.0 + uv + SQLite
 
 ## 交流群
-为了方便大家沟通互助，建此微信交流群.
 
 欢迎提出新功能建议或反馈，本人也会~~佛系~~回答大家问题
 
-<img width="312" alt="image" src="https://github.com/user-attachments/assets/0c94e62f-dc68-4b81-9ee8-f53f9ac656ee" />
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/9406c7b2-c7c3-4836-abe2-af9ac1691e3f" />
+
 
 
 
@@ -543,7 +551,7 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 </a>
 
 
-感谢<a href="https://api.chatfire.site/login?inviteCode=A15CD6A0">AI火宝</a>对本项目的赞助
+感谢AI火宝对本项目的赞助
  
 </div>
 
@@ -564,7 +572,7 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 <img width="240" alt="image" src="https://github.com/user-attachments/assets/fd7a286d-711b-445e-aecf-43e3fe356473" />
 
 感谢以下朋友对项目的无偿赞助支持：
-> @雅俗共赏、@曹峥、@以年观日、@John、@胡yun星Ethan, @azazo1、@刘聪NLP、@🍟、@苍何、@万瑾、@biubiu、@law、@方源、@寒松Falcon
+> @雅俗共赏、@曹峥、@以年观日、@John、@胡yun星Ethan, @azazo1、@刘聪NLP、@🍟、@苍何、@万瑾、@biubiu、@law、@方源、@寒松Falcon、@刘星宇&小陀螺AIGC
 > 如对赞助列表有疑问，可<a href="mailto:davidyang042@gmail.com">联系作者</a>
  
 ## 📈 项目统计
