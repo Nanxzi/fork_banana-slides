@@ -80,10 +80,7 @@ def authorize():
 def disconnect():
     """Clear stored OAuth tokens."""
     settings = Settings.get_settings()
-    settings.openai_oauth_access_token = None
-    settings.openai_oauth_refresh_token = None
-    settings.openai_oauth_expires_at = None
-    settings.openai_oauth_account_id = None
+    settings.clear_openai_oauth()
     db.session.commit()
     logger.info("OpenAI OAuth disconnected")
     return success_response({"message": "Disconnected"})
@@ -93,7 +90,7 @@ def disconnect():
 def status():
     """Return current OAuth connection status."""
     settings = Settings.get_settings()
-    connected = bool(settings.openai_oauth_access_token)
+    connected = settings.is_openai_oauth_connected()
     return success_response({
         "connected": connected,
         "account_id": settings.openai_oauth_account_id if connected else None,
