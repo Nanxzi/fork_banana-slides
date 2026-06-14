@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import random
+import re
 import tempfile
 import base64
 import hashlib
@@ -24,6 +25,7 @@ import io
 import tempfile
 import img2pdf
 import fitz  # PyMuPDF
+from utils.pptx_math import latex_to_display_text, looks_like_latex_math
 logger = logging.getLogger(__name__)
 
 
@@ -1509,6 +1511,71 @@ class ExportService:
         """
         if text_styles_cache is None:
             text_styles_cache = {}
+
+        def choose_formula_text(text: str, text_style: Any = None) -> Optional[str]:
+            candidates = [text]
+            if text_style and getattr(text_style, 'colored_segments', None):
+                styled_text = ''.join(seg.text for seg in text_style.colored_segments).strip()
+                if styled_text and styled_text not in candidates:
+                    candidates.append(styled_text)
+
+            def score(candidate: str) -> int:
+                if not looks_like_latex_math(candidate):
+                    return -1
+                return (
+                    len(re.findall(r"\\[A-Za-z]+", candidate)) * 10
+                    + candidate.count("\\") * 4
+                    + len(re.findall(r"[_^]\s*(?:\{[^{}]+\}|[A-Za-z0-9+\-=()*])", candidate)) * 3
+                    + len(re.findall(r"[∀∃∈∉≤≥≠≈∑∏∫∞∂∇πΠΣ√]", candidate)) * 2
+                    - len(re.findall(r"\b[A-Za-z]{5,}\b", candidate)) * 2
+                )
+
+            scored = [(score(candidate), candidate) for candidate in candidates if candidate]
+            scored = [item for item in scored if item[0] >= 0]
+            if not scored:
+                return None
+            return max(scored, key=lambda item: item[0])[1]
+
+        def add_text_or_formula(elem, text, bbox_list, text_level='default', align='left'):
+            text_style = text_styles_cache.get(elem.element_id)
+            if text_style:
+                logger.debug(f"{'  ' * depth}  使用缓存的文字样式: color={text_style.font_color_rgb}, bold={text_style.is_bold}")
+
+            formula_text = choose_formula_text(text, text_style)
+            if formula_text:
+                if builder.add_math_element(
+                    slide=slide,
+                    latex=formula_text,
+                    bbox=bbox_list,
+                    text_style=text_style
+                ):
+                    return
+
+                fallback_text = latex_to_display_text(formula_text)
+                builder.add_text_element(
+                    slide=slide,
+                    text=fallback_text,
+                    bbox=bbox_list,
+                    text_level=text_level,
+                    align=align,
+                    text_style=text_style,
+                    allow_math_conversion=False
+                )
+                if warnings:
+                    warnings.add_text_render_failed(
+                        formula_text,
+                        '公式暂不支持原生转换，已使用可读文本回退'
+                    )
+                return
+
+            builder.add_text_element(
+                slide=slide,
+                text=text,
+                bbox=bbox_list,
+                text_level=text_level,
+                align=align,
+                text_style=text_style
+            )
         
         for elem in elements:
             elem_type = elem.element_type
@@ -1530,9 +1597,9 @@ class ExportService:
             ]
             
             logger.info(f"{'  ' * depth}  添加元素: type={elem_type}, bbox={bbox_list}, content={elem.content[:30] if elem.content else None}, image_path={elem.image_path}, 使用{'全局' if depth > 0 else '局部'}坐标")
-            
+
             # 根据类型添加元素（参考原实现的_add_mineru_text_to_slide和_add_mineru_image_to_slide）
-            if elem_type in ['text', 'title', 'list', 'paragraph', 'header', 'footer', 'heading', 'table_caption', 'image_caption']:
+            if elem_type in ['text', 'title', 'list', 'paragraph', 'header', 'footer', 'heading', 'table_caption', 'image_caption', 'equation', 'interline_equation', 'inline_equation']:
                 # 添加文本（参考_add_mineru_text_to_slide）
                 if elem.content:
                     text = elem.content.strip()
@@ -1540,19 +1607,8 @@ class ExportService:
                         try:
                             # 确定文本级别
                             level = 'title' if elem_type in ['title', 'heading'] else 'default'
-                            
-                            # 从缓存获取预提取的文字样式
-                            text_style = text_styles_cache.get(elem.element_id)
-                            if text_style:
-                                logger.debug(f"{'  ' * depth}  使用缓存的文字样式: color={text_style.font_color_rgb}, bold={text_style.is_bold}")
-                            
-                            builder.add_text_element(
-                                slide=slide,
-                                text=text,
-                                bbox=bbox_list,
-                                text_level=level,
-                                text_style=text_style
-                            )
+
+                            add_text_or_formula(elem, text, bbox_list, text_level=level)
                         except Exception as e:
                             logger.warning(f"添加文本元素失败: {e}")
                             if fail_fast:
@@ -1570,18 +1626,14 @@ class ExportService:
                     text = elem.content.strip()
                     if text:
                         try:
-                            # 从缓存获取预提取的文字样式
-                            text_style = text_styles_cache.get(elem.element_id)
-                            
                             # 表格单元格已经在上面统一处理了bbox_global和缩放
                             # 直接使用bbox_list即可
-                            builder.add_text_element(
-                                slide=slide,
-                                text=text,
-                                bbox=bbox_list,
+                            add_text_or_formula(
+                                elem,
+                                text,
+                                bbox_list,
                                 text_level=None,
-                                align='center',
-                                text_style=text_style
+                                align='center'
                             )
 
                         except Exception as e:
