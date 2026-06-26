@@ -23,7 +23,6 @@
               "zh/features/creation",
               "zh/features/outline",
               "zh/features/descriptions",
-              "zh/features/templates",
               "zh/features/images"
             ]
           },
@@ -62,7 +61,6 @@
               "features/creation",
               "features/outline",
               "features/descriptions",
-              "features/templates",
               "features/images"
             ]
           },
