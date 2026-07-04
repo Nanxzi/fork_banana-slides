@@ -172,13 +172,22 @@ def create_app():
             migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
             if os.path.exists(migrations_dir):
                 try:
-                    from flask_migrate import upgrade as alembic_upgrade
-                    alembic_upgrade(directory=migrations_dir)
+                    from alembic import command as alembic_command
+                    from alembic.config import Config as AlembicConfig
+
+                    alembic_ini = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'alembic.ini')
+                    alembic_config = AlembicConfig(alembic_ini)
+                    alembic_config.set_main_option('sqlalchemy.url', app.config['SQLALCHEMY_DATABASE_URI'])
+                    alembic_command.upgrade(alembic_config, 'head')
                 except Exception as e:
                     logging.getLogger(__name__).warning(f'Alembic upgrade failed, falling back to create_all: {e}')
                     db.create_all()
+                    from desktop_bootstrap import repair_desktop_settings_schema
+                    repair_desktop_settings_schema(db)
             else:
                 db.create_all()
+                from desktop_bootstrap import repair_desktop_settings_schema
+                repair_desktop_settings_schema(db)
         # Load settings from database and sync to app.config
         _load_settings_to_config(app)
 
@@ -335,7 +344,9 @@ def _load_settings_to_config(app):
         app.config['TEXT_THINKING_BUDGET'] = settings.text_thinking_budget
         app.config['ENABLE_IMAGE_REASONING'] = settings.enable_image_reasoning
         app.config['IMAGE_THINKING_BUDGET'] = settings.image_thinking_budget
+        app.config['ENABLE_IMAGE_QUALITY_CONTROL'] = getattr(settings, 'enable_image_quality_control', False)
         logging.info(f"Loaded reasoning config: text={settings.enable_text_reasoning}(budget={settings.text_thinking_budget}), image={settings.enable_image_reasoning}(budget={settings.image_thinking_budget})")
+        logging.info(f"Loaded image quality control: {app.config['ENABLE_IMAGE_QUALITY_CONTROL']}")
         
         # Load Baidu API settings
         if settings.baidu_api_key:

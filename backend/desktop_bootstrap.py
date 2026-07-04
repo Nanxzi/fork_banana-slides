@@ -24,6 +24,7 @@ def repair_desktop_settings_schema(db):
             'text_thinking_budget': 'INTEGER NOT NULL DEFAULT 1024',
             'enable_image_reasoning': 'BOOLEAN NOT NULL DEFAULT 0',
             'image_thinking_budget': 'INTEGER NOT NULL DEFAULT 1024',
+            'enable_image_quality_control': 'BOOLEAN NOT NULL DEFAULT 0',
             'elevenlabs_enabled': 'BOOLEAN NOT NULL DEFAULT 0',
             'elevenlabs_api_key': 'VARCHAR(500)',
             'elevenlabs_voice_id': 'VARCHAR(100)',

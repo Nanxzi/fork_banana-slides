@@ -117,6 +117,13 @@ const previewI18n = {
       confirmRegenerateAll: "将重新生成所有页面（历史记录将会保存），确定继续吗？",
       confirmRegenerateTitle: "确认重新生成",
       generationFailed: "生成失败",
+      qualityControl: "质量控制",
+      qualityControlDesc: "生成后先质检，通过才保存版本",
+      qualityControlTooltip: "打开后，系统会先生成图片，但不会马上保存。它会自动检查图片里有没有看不清的字、奇怪的文字、明显粗糙的画面，或和你的要求差太多。发现问题会重新生成，最多试 3 次；通过检查后才会保存成新版本。如果一直不通过，会提示你调整描述。",
+      qualityControlOn: "已开启",
+      qualityControlOff: "已关闭",
+      qualityControlSaved: "质量控制设置已保存",
+      qualityControlSaveFailed: "质量控制设置保存失败",
       disabledExportTip: "本次导出范围还有 {{count}} 页未生成图片，请先生成图片或调整选择范围",
       messages: {
         exportSuccess: "导出成功", exportFailed: "导出失败",
@@ -241,6 +248,13 @@ const previewI18n = {
       confirmRegenerateAll: "Will regenerate all pages (history will be saved). Continue?",
       confirmRegenerateTitle: "Confirm Regenerate",
       generationFailed: "Generation failed",
+      qualityControl: "Quality Control",
+      qualityControlDesc: "Review after generation; save only passing versions",
+      qualityControlTooltip: "When this is on, Banana Slides generates the image first but does not save it right away. It checks for unreadable text, strange text, rough-looking visuals, or a result that is far from your request. If something looks wrong, it tries again up to 3 times. Only a checked image is saved as a new version. If it still fails, you will be asked to adjust your description.",
+      qualityControlOn: "On",
+      qualityControlOff: "Off",
+      qualityControlSaved: "Quality control setting saved",
+      qualityControlSaveFailed: "Failed to save quality control setting",
       disabledExportTip: "{{count}} page(s) in this export range have no images yet. Generate images first or adjust the selection",
       messages: {
         exportSuccess: "Export successful", exportFailed: "Export failed",
@@ -293,7 +307,7 @@ import { SlideCard } from '@/components/preview/SlideCard';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useExportTasksStore, type ExportTaskType } from '@/store/useExportTasksStore';
 import { getImageUrl } from '@/api/client';
-import { getPageImageVersions, setCurrentImageVersion, updateProject, uploadTemplate, exportPPTX as apiExportPPTX, exportPDF as apiExportPDF, exportImages as apiExportImages, exportEditablePPTX as apiExportEditablePPTX, exportVideo as apiExportVideo, getSettings, getElevenLabsVoices } from '@/api/endpoints';
+import { getPageImageVersions, setCurrentImageVersion, updateProject, uploadTemplate, exportPPTX as apiExportPPTX, exportPDF as apiExportPDF, exportImages as apiExportImages, exportEditablePPTX as apiExportEditablePPTX, exportVideo as apiExportVideo, getSettings, getElevenLabsVoices, updateSettings } from '@/api/endpoints';
 import type { ImageVersion, DescriptionContent, ExportExtractorMethod, ExportInpaintMethod, Page, NarrationConfig } from '@/types';
 import { normalizeErrorMessage } from '@/utils';
 
@@ -430,6 +444,8 @@ export const SlidePreview: React.FC = () => {
   const [elevenLabsVoices, setElevenLabsVoices] = useState<{ id: string; name: string; languages?: string[]; accent?: string | null }[]>([]);
   const [elevenLabsVoicesLoading, setElevenLabsVoicesLoading] = useState(false);
   const [outputLanguage, setOutputLanguage] = useState<string>('zh');
+  const [imageQualityControlEnabled, setImageQualityControlEnabled] = useState(false);
+  const [isSavingImageQualityControl, setIsSavingImageQualityControl] = useState(false);
   useEffect(() => { localStorage.setItem('elevenLabsEnabled', String(elevenLabsEnabled)); }, [elevenLabsEnabled]);
   useEffect(() => { if (elevenLabsVoiceId) localStorage.setItem('elevenLabsVoiceId', elevenLabsVoiceId); }, [elevenLabsVoiceId]);
   useEffect(() => { localStorage.setItem('videoSpeed', String(videoSpeed)); }, [videoSpeed]);
@@ -514,12 +530,56 @@ export const SlidePreview: React.FC = () => {
 
   // 预览图矩形选择状态（编辑弹窗内）
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const hasTouchedImageQualityControlRef = useRef(false);
   const [isRegionSelectionMode, setIsRegionSelectionMode] = useState(false);
   const [isSelectingRegion, setIsSelectingRegion] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const { show, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadImageQualityControl = async () => {
+      try {
+        const response = await getSettings();
+        if (response.data && isMounted && !hasTouchedImageQualityControlRef.current) {
+          setImageQualityControlEnabled(Boolean(response.data.enable_image_quality_control));
+        }
+      } catch (error) {
+        console.error('Failed to load image quality control setting:', error);
+      }
+    };
+    loadImageQualityControl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleToggleImageQualityControl = useCallback(async () => {
+    hasTouchedImageQualityControlRef.current = true;
+    const nextValue = !imageQualityControlEnabled;
+    setImageQualityControlEnabled(nextValue);
+    setIsSavingImageQualityControl(true);
+    try {
+      const response = await updateSettings({ enable_image_quality_control: nextValue });
+      if (response.data) {
+        setImageQualityControlEnabled(Boolean(response.data.enable_image_quality_control));
+        sessionStorage.setItem('banana-settings', JSON.stringify(response.data));
+      }
+      show({ message: t('preview.qualityControlSaved'), type: 'success' });
+    } catch (error: any) {
+      setImageQualityControlEnabled(!nextValue);
+      show({
+        message: `${t('preview.qualityControlSaveFailed')}: ${error?.response?.data?.error?.message || error?.message || t('slidePreview.unknownError')}`,
+        type: 'error',
+      });
+    } finally {
+      setIsSavingImageQualityControl(false);
+    }
+  }, [imageQualityControlEnabled, show, t]);
 
 
   // Memoize pages with generated images to avoid re-computing in multiple places
@@ -2521,6 +2581,37 @@ export const SlidePreview: React.FC = () => {
 
                   {/* 操作 */}
                   <div className="flex items-center gap-1.5 md:gap-2 w-full sm:w-auto justify-center">
+                    <div className="group/qc relative flex items-center gap-2 px-1.5 py-1">
+                      <span className="hidden md:inline text-xs font-medium text-gray-700 dark:text-foreground-secondary whitespace-nowrap">
+                        {t('preview.qualityControl')}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={imageQualityControlEnabled}
+                        aria-label={t('preview.qualityControl')}
+                        onClick={handleToggleImageQualityControl}
+                        disabled={isSavingImageQualityControl}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-banana-500 focus:ring-offset-2 disabled:opacity-60 ${
+                          imageQualityControlEnabled ? 'bg-banana-500' : 'bg-gray-300 dark:bg-background-hover'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            imageQualityControlEnabled ? 'translate-x-5' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span
+                        data-testid="quality-control-tooltip"
+                        className="absolute left-1/2 bottom-full z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-xs leading-relaxed text-gray-700 opacity-0 shadow-lg transition-opacity pointer-events-none group-hover/qc:opacity-100 group-focus-within/qc:opacity-100 dark:border-border-primary dark:bg-background-elevated dark:text-foreground-secondary"
+                      >
+                        <span className="mb-1 block font-medium text-gray-900 dark:text-foreground-primary">
+                          {imageQualityControlEnabled ? t('preview.qualityControlOn') : t('preview.qualityControlOff')}
+                        </span>
+                        {t('preview.qualityControlTooltip')}
+                      </span>
+                    </div>
                     {/* 手机端：模板更换按钮 */}
                     <Button
                       variant="ghost"
