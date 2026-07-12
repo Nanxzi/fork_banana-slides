@@ -123,6 +123,15 @@ if (!$appExe) {
 }
 
 Write-Step "AppExe=$($appExe.FullName)"
+$ffmpegDir = Join-Path $appExe.Directory.FullName "resources\ffmpeg"
+$ffmpegExe = Join-Path $ffmpegDir "ffmpeg.exe"
+$ffprobeExe = Join-Path $ffmpegDir "ffprobe.exe"
+if (!(Test-Path $ffmpegExe)) { Fail "Packaged ffmpeg executable not found: $ffmpegExe" }
+if (!(Test-Path $ffprobeExe)) { Fail "Packaged ffprobe executable not found: $ffprobeExe" }
+& $ffprobeExe -version *> (Join-Path $OutDir "ffprobe-version.txt")
+if ($LASTEXITCODE -ne 0) { Fail "Packaged ffprobe executable failed with exit code $LASTEXITCODE" }
+Write-Step "PackagedFFprobe=$ffprobeExe"
+
 $env:BANANA_DESKTOP_SMOKE = "1"
 $env:BANANA_DESKTOP_SMOKE_RESULT = $resultPath
 $env:BANANA_DESKTOP_SMOKE_SCREENSHOT = $screenshotPath
