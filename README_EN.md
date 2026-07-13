@@ -130,6 +130,7 @@ Supports three starting modesâ€”**Idea**, **Outline**, and **Page Description**â
 - **Intelligent Extraction**: Automatically identifies key points, image links, and chart information from the text, providing rich source material for generation.
 - **Automatic Image Storage**: Images extracted from documents are automatically added to the project asset library once the reference files are associated with the project, allowing for direct reuse later.
 - **Style Reference**: Supports uploading reference images or templates to customize the PPT style.
+- **Combined Multi-image References**: With GPT Image, the style template and material images embedded in page descriptions are sent to the model together instead of using only the first reference.
 
 <img width="1920" height="1080" alt="File Parsing and Asset Processing" src="https://github.com/user-attachments/assets/8cda1fd2-2369-4028-b310-ea6604183936" />
 
