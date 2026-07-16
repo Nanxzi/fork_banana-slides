@@ -29,6 +29,9 @@ const previewI18n = {
       exportPptx: "导出为 PPTX", exportPdf: "导出为 PDF",
       exportEditablePptx: "导出可编辑 PPTX（Beta）", exportImages: "导出为图片",
       exportVideo: "导出为讲解视频",
+      videoSettingsLoading: "正在加载视频设置...",
+      videoSettingsLoadFailed: "无法加载视频导出设置，请重试后再导出",
+      videoVoicesLoadFailed: "无法加载 ElevenLabs 音色列表，请稍后重试",
       pptxExportTitle: "PPTX 导出设置",
       pptxExportSubtitle: "在导出前确认本次 PPTX 的播放设置。",
       pptxTransitionToggle: "启用页面切换动画",
@@ -160,6 +163,9 @@ const previewI18n = {
       exportPptx: "Export as PPTX", exportPdf: "Export as PDF",
       exportEditablePptx: "Export Editable PPTX (Beta)", exportImages: "Export as Images",
       exportVideo: "Export as Narration Video",
+      videoSettingsLoading: "Loading video settings...",
+      videoSettingsLoadFailed: "Could not load video export settings. Please retry before exporting.",
+      videoVoicesLoadFailed: "Could not load the ElevenLabs voice list. Please try again later.",
       pptxExportTitle: "PPTX Export Settings",
       pptxExportSubtitle: "Confirm playback settings before exporting this PPTX.",
       pptxTransitionToggle: "Enable slide transitions",
@@ -424,9 +430,15 @@ export const SlidePreview: React.FC = () => {
   const [editOutlinePoints, setEditOutlinePoints] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const showExportMenuRef = useRef(false);
+  const setExportMenuOpen = (open: boolean) => {
+    showExportMenuRef.current = open;
+    setShowExportMenu(open);
+  };
   const [showExportTasksPanel, setShowExportTasksPanel] = useState(false);
   const [showPptxExportDialog, setShowPptxExportDialog] = useState(false);
   const [showVideoExportDialog, setShowVideoExportDialog] = useState(false);
+  const [isPreparingVideoExport, setIsPreparingVideoExport] = useState(false);
   const [showEditablePptxDialog, setShowEditablePptxDialog] = useState(false);
   const [editablePptxDialogIconTransparent, setEditablePptxDialogIconTransparent] = useState(true);
   const [pptxTransitionsEnabled, setPptxTransitionsEnabled] = useState(false);
@@ -1278,7 +1290,7 @@ export const SlidePreview: React.FC = () => {
       pptxTransitionEffects?: PptxTransitionEffect[];
     },
   ) => {
-    setShowExportMenu(false);
+    setExportMenuOpen(false);
     if (!projectId) return;
 
     const pageIds = getSelectedPageIdsForExport();
@@ -1414,6 +1426,59 @@ export const SlidePreview: React.FC = () => {
         pageIds: pageIds,
       });
       show({ message: normalizedErrorMessage, type: 'error' });
+    }
+  };
+
+  const handleOpenVideoExport = async () => {
+    if (isPreparingVideoExport) return;
+
+    setIsPreparingVideoExport(true);
+    try {
+      const res = await getSettings();
+      if (!showExportMenuRef.current) return;
+      if (!res || res.success === false || !res.data) {
+        throw new Error('Settings response did not contain usable data');
+      }
+
+      const hasKey = (res.data.elevenlabs_api_key_length ?? 0) > 0;
+      setElevenLabsApiKeyConfigured(hasKey);
+      setOutputLanguage((res.data.output_language as string | undefined) || 'zh');
+      if (!hasKey) setElevenLabsEnabled(false);
+
+      if (hasKey && elevenLabsEnabled && elevenLabsVoices.length === 0) {
+        setElevenLabsVoicesLoading(true);
+        try {
+          const voicesRes = await getElevenLabsVoices();
+          if (!showExportMenuRef.current) return;
+          const voices = voicesRes?.data?.voices ?? [];
+          setElevenLabsVoices(voices);
+          if (voices.length > 0 && !voices.some(voice => voice.id === elevenLabsVoiceId)) {
+            setElevenLabsVoiceId(voices[0].id);
+          }
+        } catch (error: any) {
+          if (!showExportMenuRef.current) return;
+          show({
+            message: error?.response?.data?.error?.message
+              || error?.response?.data?.message
+              || error?.message
+              || t('preview.videoVoicesLoadFailed'),
+            type: 'error',
+          });
+        } finally {
+          setElevenLabsVoicesLoading(false);
+        }
+      }
+
+      if (!showExportMenuRef.current) return;
+      setVideoIncludeNoImage(false);
+      setExportMenuOpen(false);
+      setShowVideoExportDialog(true);
+    } catch (error) {
+      if (!showExportMenuRef.current) return;
+      console.error('Failed to load video export settings:', error);
+      show({ message: t('preview.videoSettingsLoadFailed'), type: 'error' });
+    } finally {
+      setIsPreparingVideoExport(false);
     }
   };
 
@@ -1775,7 +1840,7 @@ export const SlidePreview: React.FC = () => {
                 aria-label={t('preview.exportTasks')}
                 onClick={() => {
                   setShowExportTasksPanel(!showExportTasksPanel);
-                  setShowExportMenu(false);
+                  setExportMenuOpen(false);
                 }}
                 className="relative"
               >
@@ -1807,7 +1872,7 @@ export const SlidePreview: React.FC = () => {
               size="sm"
               icon={<Download size={16} className="md:w-[18px] md:h-[18px]" />}
               onClick={() => {
-                setShowExportMenu(!showExportMenu);
+                setExportMenuOpen(!showExportMenu);
                 setShowExportTasksPanel(false);
               }}
               disabled={isMultiSelectMode && selectedPageIds.size === 0}
@@ -1834,7 +1899,7 @@ export const SlidePreview: React.FC = () => {
                 )}
                 <button
                   onClick={() => {
-                    setShowExportMenu(false);
+                    setExportMenuOpen(false);
                     setShowPptxExportDialog(true);
                   }}
                   disabled={!exportRangeHasAllImages}
@@ -1845,7 +1910,7 @@ export const SlidePreview: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    setShowExportMenu(false);
+                    setExportMenuOpen(false);
                     setEditablePptxDialogIconTransparent(currentProject?.enable_icon_subject_extraction ?? true);
                     setShowEditablePptxDialog(true);
                   }}
@@ -1872,34 +1937,14 @@ export const SlidePreview: React.FC = () => {
                   {t('preview.exportImages')}
                 </button>
                 <button
-                  onClick={async () => {
-                    setShowExportMenu(false);
-                    try {
-                      const res = await getSettings();
-                      const hasKey = (res.data?.elevenlabs_api_key_length ?? 0) > 0;
-                      setElevenLabsApiKeyConfigured(hasKey);
-                      const lang = (res.data?.output_language as string | undefined) || 'zh';
-                      setOutputLanguage(lang);
-                      if (!hasKey) setElevenLabsEnabled(false);
-                      if (hasKey && elevenLabsEnabled && elevenLabsVoices.length === 0) {
-                        setElevenLabsVoicesLoading(true);
-                        try {
-                          const voicesRes = await getElevenLabsVoices();
-                          setElevenLabsVoices(voicesRes.data?.voices ?? []);
-                        } catch (error) {
-                          console.error('Failed to load ElevenLabs voices:', error);
-                        }
-                        setElevenLabsVoicesLoading(false);
-                      }
-                  } catch (error) {
-                    console.error('Failed to load settings before video export:', error);
-                  }
-                  setVideoIncludeNoImage(false);
-                  setShowVideoExportDialog(true);
-                }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm"
+                  onClick={handleOpenVideoExport}
+                  disabled={isPreparingVideoExport}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm disabled:cursor-wait disabled:opacity-70"
                 >
-                  {t('preview.exportVideo')}
+                  <span className="flex items-center gap-2">
+                    {isPreparingVideoExport && <Loader2 size={14} className="animate-spin" />}
+                    {isPreparingVideoExport ? t('preview.videoSettingsLoading') : t('preview.exportVideo')}
+                  </span>
                 </button>
               </div>
             )}

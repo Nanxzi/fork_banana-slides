@@ -333,6 +333,75 @@ def test_auto_match_endpoint_missing_descriptions_400(client, stub_submit_task):
     assert err['code'] == 'MISSING_DESCRIPTIONS'
 
 
+def test_auto_match_endpoint_rejects_project_without_pages(
+        client, stub_submit_task):
+    project_id = _make_project(client)
+
+    resp = client.post(
+        f'/api/projects/{project_id}/template-assets/auto-match',
+        json={'overwrite_existing': False, 'preserve_non_empty': True})
+
+    assert resp.status_code == 400
+    assert resp.get_json()['error']['code'] == 'NO_PAGES'
+    assert not any(call['func'] == 'auto_match_templates_task'
+                   for call in stub_submit_task)
+
+
+def test_auto_match_endpoint_waits_for_template_analysis(
+        client, stub_submit_task, app):
+    project_id = _make_project(client)
+    _upload_asset(client, project_id)
+    _make_pages_with_descriptions(app, project_id, n=1)
+
+    resp = client.post(
+        f'/api/projects/{project_id}/template-assets/auto-match',
+        json={'overwrite_existing': False, 'preserve_non_empty': True})
+
+    assert resp.status_code == 409
+    assert resp.get_json()['error']['code'] == 'TEMPLATES_ANALYZING'
+    assert not any(call['func'] == 'auto_match_templates_task'
+                   for call in stub_submit_task)
+
+
+def test_auto_match_endpoint_requires_analyzed_template(
+        client, stub_submit_task, app):
+    project_id = _make_project(client)
+    _make_pages_with_descriptions(app, project_id, n=1)
+
+    resp = client.post(
+        f'/api/projects/{project_id}/template-assets/auto-match',
+        json={'overwrite_existing': False, 'preserve_non_empty': True})
+
+    assert resp.status_code == 400
+    assert resp.get_json()['error']['code'] == 'NO_ANALYZED_TEMPLATES'
+    assert not any(call['func'] == 'auto_match_templates_task'
+                   for call in stub_submit_task)
+
+
+def test_page_auto_match_waits_for_all_template_analysis(
+        client, stub_submit_task, app):
+    from models import db, ProjectTemplateAsset
+
+    project_id = _make_project(client)
+    completed_asset_id = _upload_asset(client, project_id)
+    _upload_asset(client, project_id)
+    page_id = _make_pages_with_descriptions(app, project_id, n=1)[0]
+
+    with app.app_context():
+        asset = db.session.get(ProjectTemplateAsset, completed_asset_id)
+        asset.analysis_status = 'completed'
+        asset.set_analysis({'template_role': 'content'})
+        db.session.commit()
+
+    resp = client.post(
+        f'/api/projects/{project_id}/pages/{page_id}/template/auto-match')
+
+    assert resp.status_code == 409
+    assert resp.get_json()['error']['code'] == 'TEMPLATES_ANALYZING'
+    assert not any(call['func'] == 'auto_match_templates_task'
+                   for call in stub_submit_task)
+
+
 def test_auto_match_endpoint_marks_task_failed_when_submit_fails(
         client, monkeypatch, app, stub_submit_task):
     from models import Task
