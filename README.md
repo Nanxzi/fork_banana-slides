@@ -188,6 +188,7 @@
 | 状态 | 里程碑 |
 | --- | --- |
 | ✅ 已完成 | 从想法、大纲、页面描述三种路径创建 PPT |
+| ✅ 已完成 | 创建输入前后端双重非空校验，避免空白项目 |
 | ✅ 已完成 | 解析文本中的 Markdown 格式图片 |
 | ✅ 已完成 | PPT 单页添加更多素材 |
 | ✅ 已完成 | PPT 单页框选区域Vibe口头编辑 |
@@ -514,7 +515,7 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 
 欢迎提出新功能建议或反馈，本人也会~~佛系~~回答大家问题
 
-<img width="312" alt="image" src="https://github.com/user-attachments/assets/8930a308-0631-4758-b662-921f176d411c" />
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/aa7756f3-18d5-456f-9f2e-6a541fb1c444" />
 
 
 
