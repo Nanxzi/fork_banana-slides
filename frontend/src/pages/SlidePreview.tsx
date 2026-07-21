@@ -91,7 +91,7 @@ const previewI18n = {
       regenerate: "重新生成", regenerating: "生成中...",
       editMode: "编辑模式", viewMode: "查看模式", page: "第 {{num}} 页",
       projectSettings: "项目设置", changeTemplate: "更换模板", refresh: "刷新",
-      switchToMulti: "转为多模板", switchToSingle: "转为单模板", templateSetup: "模板配置",
+      switchToMulti: "转为多模板", switchToSingle: "转为单模板", templateSetup: "模板配置", templateMenu: "模板",
       batchGenerate: "批量生成图片 ({{count}})", generateSelected: "生成选中页面 ({{count}})",
       multiSelect: "多选", cancelMultiSelect: "取消多选", pagesUnit: "页",
       noPages: "还没有页面", noPagesHint: "请先返回编辑页面添加内容", backToEdit: "返回编辑",
@@ -225,7 +225,7 @@ const previewI18n = {
       exportSelectedPages: "Will export {{count}} selected page(s)",
       regenerate: "Regenerate", regenerating: "Generating...",
       editMode: "Edit Mode", viewMode: "View Mode", page: "Page {{num}}",
-      switchToMulti: "Switch to multi", switchToSingle: "Switch to single", templateSetup: "Template setup",
+      switchToMulti: "Switch to multi", switchToSingle: "Switch to single", templateSetup: "Template setup", templateMenu: "Template",
       projectSettings: "Project Settings", changeTemplate: "Change Template", refresh: "Refresh",
       batchGenerate: "Batch Generate Images ({{count}})", generateSelected: "Generate Selected ({{count}})",
       multiSelect: "Multi-select", cancelMultiSelect: "Cancel Multi-select", pagesUnit: " pages",
@@ -299,11 +299,12 @@ import {
   FileText,
   Loader2,
   Info,
-  Layers,
-  RectangleHorizontal,
   LayoutTemplate,
+  Presentation,
+  AlertTriangle,
 } from 'lucide-react';
-import { Button, IconButton, Loading, Modal, Textarea, useToast, useConfirm, MaterialSelector, ProjectSettingsModal, ExportTasksPanel, TextStyleSelector } from '@/components/shared';
+import logoUrl from '@/assets/logo.png';
+import { Button, Loading, Modal, Textarea, useToast, useConfirm, MaterialSelector, ProjectSettingsModal, ExportTasksPanel, TextStyleSelector } from '@/components/shared';
 import { SwitchToSingleModeDialog } from '@/components/template/SwitchToSingleModeDialog';
 import { MaterialGeneratorModal } from '@/components/shared/MaterialGeneratorModal';
 import { TemplateSelector, getTemplateFile } from '@/components/shared/TemplateSelector';
@@ -312,6 +313,7 @@ import { materialUrlToFile } from '@/components/shared/MaterialSelector';
 import { triggerDownload } from '@/api/client';
 import type { Material } from '@/api/endpoints';
 import { SlideCard } from '@/components/preview/SlideCard';
+import { PagePropertiesDrawer, readStoredDrawerWidth } from '@/components/preview/PagePropertiesDrawer';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useExportTasksStore, type ExportTaskType } from '@/store/useExportTasksStore';
 import { getImageUrl } from '@/api/client';
@@ -389,6 +391,114 @@ const PPTX_TRANSITION_OPTIONS: { value: PptxTransitionEffect; labelKey: string }
   { value: 'wheel', labelKey: 'pptxTransitionWheel' },
 ];
 
+type PreviewT = (key: string, params?: Record<string, string | number>) => string;
+
+// 质量控制开关：桌面端放在左栏「批量生成」旁（项目级生成设置），窄屏放在底部控制栏
+const QualityControlToggle: React.FC<{
+  enabled: boolean;
+  saving: boolean;
+  onToggle: () => void;
+  t: PreviewT;
+  className?: string;
+  labelClassName?: string;
+  tooltipPlacement?: 'top' | 'bottom';
+  tooltipTestId?: string;
+}> = ({
+  enabled,
+  saving,
+  onToggle,
+  t,
+  className = '',
+  labelClassName = '',
+  tooltipPlacement = 'top',
+  tooltipTestId = 'quality-control-tooltip',
+}) => (
+  <div className={`group/qc relative flex items-center gap-2 ${className}`}>
+    <span className={`text-xs font-medium text-gray-700 dark:text-foreground-secondary whitespace-nowrap ${labelClassName}`}>
+      {t('preview.qualityControl')}
+    </span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={t('preview.qualityControl')}
+      onClick={onToggle}
+      disabled={saving}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-banana-500 focus:ring-offset-2 disabled:opacity-60 ${
+        enabled ? 'bg-banana-500' : 'bg-gray-300 dark:bg-background-hover'
+      }`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+          enabled ? 'translate-x-5' : 'translate-x-1'
+        }`}
+      />
+    </button>
+    <span
+      data-testid={tooltipTestId}
+      className={`absolute left-1/2 z-50 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-xs leading-relaxed text-gray-700 opacity-0 shadow-lg transition-opacity pointer-events-none group-hover/qc:opacity-100 group-focus-within/qc:opacity-100 dark:border-border-primary dark:bg-background-elevated dark:text-foreground-secondary ${
+        tooltipPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+      }`}
+    >
+      <span className="mb-1 block font-medium text-gray-900 dark:text-foreground-primary">
+        {enabled ? t('preview.qualityControlOn') : t('preview.qualityControlOff')}
+      </span>
+      {t('preview.qualityControlTooltip')}
+    </span>
+  </div>
+);
+
+// 历史版本按钮 + 上弹菜单：桌面端悬浮工具栏与窄屏底部控制栏共用
+const VersionHistoryMenu: React.FC<{
+  versions: ImageVersion[];
+  open: boolean;
+  onToggleOpen: () => void;
+  onSwitchVersion: (versionId: string) => void;
+  t: PreviewT;
+  buttonClassName?: string;
+}> = ({ versions, open, onToggleOpen, onSwitchVersion, t, buttonClassName = 'text-xs md:text-sm' }) => (
+  <div className="relative">
+    <Button variant="ghost" size="sm" onClick={onToggleOpen} className={buttonClassName}>
+      <span className="hidden md:inline">{t('preview.historyVersions')} ({versions.length})</span>
+      <span className="md:hidden">{t('preview.versions')}</span>
+    </Button>
+    {open && (
+      <div className="absolute right-0 bottom-full mb-2 w-56 md:w-64 bg-white dark:bg-background-secondary rounded-lg shadow-lg border border-gray-200 dark:border-border-primary py-2 z-20 max-h-96 overflow-y-auto">
+        {versions.map((version) => (
+          <button
+            key={version.version_id}
+            onClick={() => onSwitchVersion(version.version_id)}
+            className={`w-full px-3 md:px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors flex items-center justify-between text-xs md:text-sm ${
+              version.is_current ? 'bg-banana-50 dark:bg-background-secondary' : ''
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span>
+                {t('preview.version')} {version.version_number}
+              </span>
+              {version.is_current && (
+                <span className="text-xs text-banana-600 font-medium">
+                  ({t('preview.current')})
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-gray-400 hidden md:inline">
+              {version.created_at
+                ? new Date(version.created_at).toLocaleString('zh-CN', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : ''}
+            </span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 export const SlidePreview: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -405,6 +515,7 @@ export const SlidePreview: React.FC = () => {
     deletePageById,
     updatePageLocal,
     isGlobalLoading,
+    isSavingPages,
     taskProgress,
     pageGeneratingTasks,
     warningMessage,
@@ -412,6 +523,8 @@ export const SlidePreview: React.FC = () => {
     loadTemplateAssets,
     switchTemplateMode,
     switchTemplateModeWithUpload,
+    updatePageTemplate,
+    uploadTemplateAsset,
   } = useProjectStore();
   
   const { addTask, pollTask: pollExportTask, tasks: exportTasks, restoreActiveTasks } = useExportTasksStore();
@@ -472,7 +585,36 @@ export const SlidePreview: React.FC = () => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [imageVersions, setImageVersions] = useState<ImageVersion[]>([]);
+  // 页面属性抽屉：默认收起，展开状态与宽度都记忆在本地
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(
+    () => localStorage.getItem('previewDrawer.open') === 'true'
+  );
+  const [propertiesWidth, setPropertiesWidth] = useState(readStoredDrawerWidth);
+  const [descriptionExtraFields, setDescriptionExtraFields] = useState<string[]>([]);
+  const [imagePromptExtraFields, setImagePromptExtraFields] = useState<string[] | undefined>(undefined);
+  // 只在用户真正切换时落盘，避免首屏窗口宽度把默认值固化下来
+  const setPropertiesOpen = useCallback((open: boolean) => {
+    setIsPropertiesOpen(open);
+    localStorage.setItem('previewDrawer.open', String(open));
+  }, []);
+  const handlePropertiesWidthChange = useCallback((width: number) => {
+    setPropertiesWidth(width);
+    localStorage.setItem('previewDrawer.width', String(width));
+  }, []);
+  // 抽屉里改页级模板：选图和模板提示词都走 PATCH，不经过页面字段的防抖队列
+  const handleUpdatePageTemplate = useCallback(
+    (pageId: string, patch: { template_asset_id?: string | null; template_style_text?: string | null }) =>
+      projectId
+        ? updatePageTemplate(projectId, pageId, { ...patch, selection_source: 'manual' })
+        : Promise.resolve(),
+    [projectId, updatePageTemplate]
+  );
+  const handleUploadTemplateAsset = useCallback(
+    (file: File) => uploadTemplateAsset(projectId!, file),
+    [projectId, uploadTemplateAsset]
+  );
   const [showVersionMenu, setShowVersionMenu] = useState(false);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedPresetTemplateId, setSelectedPresetTemplateId] = useState<string | null>(null);
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
@@ -558,9 +700,15 @@ export const SlidePreview: React.FC = () => {
     const loadImageQualityControl = async () => {
       try {
         const response = await getSettings();
-        if (response.data && isMounted && !hasTouchedImageQualityControlRef.current) {
+        if (!response.data || !isMounted) return;
+        if (!hasTouchedImageQualityControlRef.current) {
           setImageQualityControlEnabled(Boolean(response.data.enable_image_quality_control));
         }
+        // 属性抽屉的描述额外字段与详细编辑器共用同一份配置
+        const extra = response.data.description_extra_fields;
+        if (Array.isArray(extra)) setDescriptionExtraFields(extra);
+        const imageFields = response.data.image_prompt_extra_fields;
+        if (Array.isArray(imageFields)) setImagePromptExtraFields(imageFields);
       } catch (error) {
         console.error('Failed to load image quality control setting:', error);
       }
@@ -1726,6 +1874,7 @@ export const SlidePreview: React.FC = () => {
   }
 
   const selectedPage = currentProject.pages[selectedIndex];
+  const isCurrentPageGenerating = selectedPage?.id ? !!pageGeneratingTasks[selectedPage.id] : false;
   const imageUrl = selectedPage?.generated_image_path
     ? getImageUrl(selectedPage.generated_image_path, selectedPage.updated_at)
     : '';
@@ -1783,7 +1932,7 @@ export const SlidePreview: React.FC = () => {
               <span className="hidden sm:inline">{t('common.back')}</span>
             </Button>
             <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-              <span className="text-xl md:text-2xl">🍌</span>
+              <img src={logoUrl} alt="" className="w-6 h-6 md:w-8 md:h-8 object-contain flex-shrink-0" />
               <span className="text-base md:text-xl font-bold truncate">{t('home.title')}</span>
             </div>
             <span className="text-gray-400 hidden md:inline">|</span>
@@ -1799,41 +1948,71 @@ export const SlidePreview: React.FC = () => {
             >
               <span className="hidden xl:inline">{t('preview.projectSettings')}</span>
             </Button>
-            {currentProject?.template_mode === 'multi' ? (
-              <>
-                <IconButton
-                  icon={<LayoutTemplate size={18} />}
-                  label={t('preview.templateSetup')}
-                  tooltipSide="bottom"
-                  onClick={() => navigate(`/project/${projectId}/template-setup`)}
-                  className="hidden lg:inline-flex"
+            {/* 模板菜单：按模式展示 配置/更换 + 模式切换，避免并列入口误用 */}
+            <div className="relative hidden lg:block">
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="template-menu"
+                title={t('preview.templateMenu')}
+                icon={<LayoutTemplate size={16} className="md:w-[18px] md:h-[18px]" />}
+                onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+              >
+                <span className="hidden xl:inline">{t('preview.templateMenu')}</span>
+                <ChevronDown
+                  size={14}
+                  className={`ml-0.5 transition-transform ${showTemplateMenu ? 'rotate-180' : ''}`}
                 />
-                <IconButton
-                  icon={<RectangleHorizontal size={18} />}
-                  label={t('preview.switchToSingle')}
-                  tooltipSide="bottom"
-                  onClick={() => setIsSwitchSingleOpen(true)}
-                  className="hidden lg:inline-flex"
-                />
-              </>
-            ) : (
-              <IconButton
-                icon={<Layers size={18} />}
-                label={t('preview.switchToMulti')}
-                tooltipSide="bottom"
-                onClick={handleSwitchToMulti}
-                className="hidden lg:inline-flex"
-              />
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Upload size={16} className="md:w-[18px] md:h-[18px]" />}
-              onClick={() => { setDraftTemplateStyle(templateStyle); setIsTemplateModalOpen(true); }}
-              className="hidden lg:inline-flex"
-            >
-              <span className="hidden xl:inline">{t('preview.changeTemplate')}</span>
-            </Button>
+              </Button>
+              {showTemplateMenu && (
+                <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-background-secondary rounded-lg shadow-lg border border-gray-200 dark:border-border-primary py-2 z-20">
+                  {currentProject?.template_mode === 'multi' ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowTemplateMenu(false);
+                          navigate(`/project/${projectId}/template-setup`);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm"
+                      >
+                        {t('preview.templateSetup')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowTemplateMenu(false);
+                          setIsSwitchSingleOpen(true);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm"
+                      >
+                        {t('preview.switchToSingle')}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowTemplateMenu(false);
+                          setDraftTemplateStyle(templateStyle);
+                          setIsTemplateModalOpen(true);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm"
+                      >
+                        {t('preview.changeTemplate')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowTemplateMenu(false);
+                          handleSwitchToMulti();
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors text-sm"
+                      >
+                        {t('preview.switchToMulti')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -2420,7 +2599,8 @@ export const SlidePreview: React.FC = () => {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0 min-h-0">
         {/* 左侧：缩略图列表 */}
         <aside className="w-full md:w-80 bg-white dark:bg-background-secondary border-b md:border-b-0 md:border-r border-gray-200 dark:border-border-primary flex flex-col flex-shrink-0 min-h-0">
-          <div className="p-3 md:p-4 border-b border-gray-200 dark:border-border-primary flex-shrink-0 space-y-2 md:space-y-3 md:sticky md:top-0 md:z-10">
+          {/* z-20：高于下方同为 sticky z-10 的多选行，否则质量控制的下弹 tooltip 会被它盖住 */}
+          <div className="p-3 md:p-4 border-b border-gray-200 dark:border-border-primary flex-shrink-0 space-y-2 md:space-y-3 md:sticky md:top-0 md:z-20">
             <Button
               variant="primary"
               icon={<Sparkles size={16} className="md:w-[18px] md:h-[18px]" />}
@@ -2432,6 +2612,17 @@ export const SlidePreview: React.FC = () => {
                 ? t('preview.generateSelected', { count: selectedPageIds.size })
                 : t('preview.batchGenerate', { count: currentProject.pages.length })}
             </Button>
+            {/* 桌面端：质量控制是项目级生成设置，与批量生成放在一起；窄屏时在底部控制栏 */}
+            <div className="hidden lg:block">
+              <QualityControlToggle
+                enabled={imageQualityControlEnabled}
+                saving={isSavingImageQualityControl}
+                onToggle={handleToggleImageQualityControl}
+                t={t}
+                className="w-full justify-between px-0.5"
+                tooltipPlacement="bottom"
+              />
+            </div>
           </div>
           
           {/* 缩略图列表：桌面端垂直，移动端横向滚动 */}
@@ -2558,11 +2749,11 @@ export const SlidePreview: React.FC = () => {
         </aside>
 
         {/* 右侧：大图预览 */}
-        <main className="flex-1 flex flex-col bg-gradient-to-br from-banana-50 dark:from-background-primary via-white dark:via-background-primary to-gray-50 dark:to-background-primary min-w-0 overflow-hidden">
+        <main className="relative flex-1 flex flex-col bg-gradient-to-br from-banana-50 dark:from-background-primary via-white dark:via-background-primary to-gray-50 dark:to-background-primary min-w-0 overflow-hidden">
           {currentProject.pages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center overflow-y-auto">
               <div className="text-center">
-                <div className="text-4xl md:text-6xl mb-4">📊</div>
+                <Presentation size={56} className="mx-auto mb-4 text-gray-300 dark:text-foreground-tertiary" strokeWidth={1.5} />
                 <h3 className="text-lg md:text-xl font-semibold text-gray-700 dark:text-foreground-secondary mb-2">
                   {t('preview.noPages')}
                 </h3>
@@ -2580,7 +2771,7 @@ export const SlidePreview: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* 预览区 */}
+              {/* 预览区：lg+ 时幻灯片与悬浮工具栏作为一组垂直居中 */}
               <div className="flex-1 overflow-y-auto min-h-0 flex items-center justify-center p-4 md:p-8">
                 <div className="max-w-5xl w-full">
                   <div className="relative bg-white dark:bg-background-secondary rounded-lg shadow-xl overflow-hidden touch-manipulation" style={{ aspectRatio: aspectRatioStyle }}>
@@ -2594,7 +2785,7 @@ export const SlidePreview: React.FC = () => {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-background-secondary">
                         <div className="text-center">
-                          <div className="text-6xl mb-4">🍌</div>
+                          <ImageIcon size={48} className="mx-auto mb-4 text-gray-300 dark:text-foreground-tertiary" strokeWidth={1.5} />
                           <p className="text-gray-500 dark:text-foreground-tertiary mb-4">
                             {selectedPage?.status === 'QUEUED'
                               ? t('preview.queued')
@@ -2617,12 +2808,77 @@ export const SlidePreview: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+              {/* 悬浮工具栏（lg+）：只放当前页相关操作，紧随幻灯片下方，
+                  和图片同属一列一起居中，免得大屏上被甩到离图很远的视口底部 */}
+              <div
+                data-testid="preview-floating-toolbar"
+                className="hidden lg:flex mt-4 mx-auto w-max items-center gap-1 rounded-full border border-gray-200 dark:border-border-primary bg-white/95 dark:bg-background-secondary/95 backdrop-blur px-2 py-1.5 shadow-lg [&_button]:whitespace-nowrap"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<ChevronLeft size={18} />}
+                  onClick={() => setSelectedIndex(Math.max(0, selectedIndex - 1))}
+                  disabled={selectedIndex === 0}
+                  className="rounded-full px-2"
+                  title={t('preview.prevPage')}
+                  aria-label={t('preview.prevPage')}
+                />
+                <span className="px-1.5 text-sm text-gray-600 dark:text-foreground-tertiary whitespace-nowrap tabular-nums">
+                  {selectedIndex + 1} / {currentProject.pages.length}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<ChevronRight size={18} />}
+                  onClick={() =>
+                    setSelectedIndex(
+                      Math.min(currentProject.pages.length - 1, selectedIndex + 1)
+                    )
+                  }
+                  disabled={selectedIndex === currentProject.pages.length - 1}
+                  className="rounded-full px-2"
+                  title={t('preview.nextPage')}
+                  aria-label={t('preview.nextPage')}
+                />
+                <div className="mx-1 h-5 w-px bg-gray-200 dark:bg-border-primary" />
+                {imageVersions.length > 1 && (
+                  <VersionHistoryMenu
+                    versions={imageVersions}
+                    open={showVersionMenu}
+                    onToggleOpen={() => setShowVersionMenu(!showVersionMenu)}
+                    onSwitchVersion={handleSwitchVersion}
+                    t={t}
+                    buttonClassName="rounded-full text-sm"
+                  />
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleEditPage}
+                  disabled={!selectedPage}
+                  className="rounded-full text-sm"
+                >
+                  {t('common.edit')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegeneratePage}
+                  disabled={isCurrentPageGenerating}
+                  className="rounded-full text-sm"
+                >
+                  {isCurrentPageGenerating ? t('preview.regenerating') : t('preview.regenerate')}
+                </Button>
+                </div>
                 </div>
               </div>
 
-              {/* 控制栏 */}
-              <div className="bg-white dark:bg-background-secondary border-t border-gray-200 dark:border-border-primary px-3 md:px-6 py-3 md:py-4 flex-shrink-0">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
+              {/* 控制栏（lg 以下）：窄屏保持 docked 布局 */}
+              <div data-testid="preview-docked-toolbar" className="lg:hidden bg-white dark:bg-background-secondary border-t border-gray-200 dark:border-border-primary px-3 md:px-6 py-3 md:py-4 flex-shrink-0">
+                {/* flex-wrap + nowrap 按钮：抽屉拉宽后整块换行，而不是把按钮文字折断 */}
+                <div className="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 max-w-5xl mx-auto [&_button]:whitespace-nowrap">
                   {/* 导航 */}
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
                     <Button
@@ -2658,46 +2914,36 @@ export const SlidePreview: React.FC = () => {
 
                   {/* 操作 */}
                   <div className="flex items-center gap-1.5 md:gap-2 w-full sm:w-auto justify-center">
-                    <div className="group/qc relative flex items-center gap-2 px-1.5 py-1">
-                      <span className="hidden md:inline text-xs font-medium text-gray-700 dark:text-foreground-secondary whitespace-nowrap">
-                        {t('preview.qualityControl')}
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={imageQualityControlEnabled}
-                        aria-label={t('preview.qualityControl')}
-                        onClick={handleToggleImageQualityControl}
-                        disabled={isSavingImageQualityControl}
-                        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-banana-500 focus:ring-offset-2 disabled:opacity-60 ${
-                          imageQualityControlEnabled ? 'bg-banana-500' : 'bg-gray-300 dark:bg-background-hover'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                            imageQualityControlEnabled ? 'translate-x-5' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                      <span
-                        data-testid="quality-control-tooltip"
-                        className="absolute left-1/2 bottom-full z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-xs leading-relaxed text-gray-700 opacity-0 shadow-lg transition-opacity pointer-events-none group-hover/qc:opacity-100 group-focus-within/qc:opacity-100 dark:border-border-primary dark:bg-background-elevated dark:text-foreground-secondary"
-                      >
-                        <span className="mb-1 block font-medium text-gray-900 dark:text-foreground-primary">
-                          {imageQualityControlEnabled ? t('preview.qualityControlOn') : t('preview.qualityControlOff')}
-                        </span>
-                        {t('preview.qualityControlTooltip')}
-                      </span>
-                    </div>
-                    {/* 手机端：模板更换按钮 */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<Upload size={16} />}
-                      onClick={() => { setDraftTemplateStyle(templateStyle); setIsTemplateModalOpen(true); }}
-                      className="lg:hidden text-xs"
-                      title={t('preview.changeTemplate')}
+                    <QualityControlToggle
+                      enabled={imageQualityControlEnabled}
+                      saving={isSavingImageQualityControl}
+                      onToggle={handleToggleImageQualityControl}
+                      t={t}
+                      className="px-1.5 py-1"
+                      labelClassName="hidden md:inline"
+                      tooltipPlacement="top"
+                      tooltipTestId="quality-control-tooltip-docked"
                     />
+                    {/* 手机端：multi 模式进入模板配置，single 模式打开更换模板 */}
+                    {currentProject?.template_mode === 'multi' ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<LayoutTemplate size={16} />}
+                        onClick={() => navigate(`/project/${projectId}/template-setup`)}
+                        className="lg:hidden text-xs"
+                        title={t('preview.templateSetup')}
+                      />
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Upload size={16} />}
+                        onClick={() => { setDraftTemplateStyle(templateStyle); setIsTemplateModalOpen(true); }}
+                        className="lg:hidden text-xs"
+                        title={t('preview.changeTemplate')}
+                      />
+                    )}
                     {/* 手机端：素材生成按钮 */}
                     <Button
                       variant="ghost"
@@ -2718,51 +2964,13 @@ export const SlidePreview: React.FC = () => {
                       title={t('preview.refresh')}
                     />
                     {imageVersions.length > 1 && (
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowVersionMenu(!showVersionMenu)}
-                          className="text-xs md:text-sm"
-                        >
-                          <span className="hidden md:inline">{t('preview.historyVersions')} ({imageVersions.length})</span>
-                          <span className="md:hidden">{t('preview.versions')}</span>
-                        </Button>
-                        {showVersionMenu && (
-                          <div className="absolute right-0 bottom-full mb-2 w-56 md:w-64 bg-white dark:bg-background-secondary rounded-lg shadow-lg border border-gray-200 dark:border-border-primary py-2 z-20 max-h-96 overflow-y-auto">
-                            {imageVersions.map((version) => (
-                              <button
-                                key={version.version_id}
-                                onClick={() => handleSwitchVersion(version.version_id)}
-                                className={`w-full px-3 md:px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-background-hover transition-colors flex items-center justify-between text-xs md:text-sm ${
-                                  version.is_current ? 'bg-banana-50 dark:bg-background-secondary' : ''
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span>
-                                    {t('preview.version')} {version.version_number}
-                                  </span>
-                                  {version.is_current && (
-                                    <span className="text-xs text-banana-600 font-medium">
-                                      ({t('preview.current')})
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-xs text-gray-400 hidden md:inline">
-                                  {version.created_at
-                                    ? new Date(version.created_at).toLocaleString('zh-CN', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })
-                                    : ''}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <VersionHistoryMenu
+                        versions={imageVersions}
+                        open={showVersionMenu}
+                        onToggleOpen={() => setShowVersionMenu(!showVersionMenu)}
+                        onSwitchVersion={handleSwitchVersion}
+                        t={t}
+                      />
                     )}
                     <Button
                       variant="secondary"
@@ -2777,12 +2985,10 @@ export const SlidePreview: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={handleRegeneratePage}
-                      disabled={selectedPage?.id && pageGeneratingTasks[selectedPage.id] ? true : false}
+                      disabled={isCurrentPageGenerating}
                       className="text-xs md:text-sm flex-1 sm:flex-initial"
                     >
-                      {selectedPage?.id && pageGeneratingTasks[selectedPage.id]
-                        ? t('preview.regenerating')
-                        : t('preview.regenerate')}
+                      {isCurrentPageGenerating ? t('preview.regenerating') : t('preview.regenerate')}
                     </Button>
                   </div>
                 </div>
@@ -2790,6 +2996,30 @@ export const SlidePreview: React.FC = () => {
             </>
           )}
         </main>
+
+        {/* 右侧：页面属性抽屉（可拖拽调宽，桌面端就地推挤布局，窄屏浮层显示） */}
+        <PagePropertiesDrawer
+          page={selectedPage}
+          projectId={projectId}
+          pageIndex={selectedIndex}
+          pageCount={currentProject.pages.length}
+          versionCount={imageVersions.length}
+          templateMode={currentProject.template_mode}
+          templateAssets={templateAssets}
+          extraFieldNames={descriptionExtraFields}
+          imagePromptFields={imagePromptExtraFields}
+          isOpen={isPropertiesOpen}
+          isSaving={isSavingPages}
+          width={propertiesWidth}
+          onWidthChange={handlePropertiesWidthChange}
+          onOpen={() => setPropertiesOpen(true)}
+          onClose={() => setPropertiesOpen(false)}
+          onUpdate={updatePageLocal}
+          onUpdatePageTemplate={handleUpdatePageTemplate}
+          onUploadTemplateAsset={handleUploadTemplateAsset}
+          onOpenTemplateSetup={() => navigate(`/project/${projectId}/template-setup`)}
+          showToast={show}
+        />
       </div>
 
       {/* 编辑对话框 */}
@@ -2983,7 +3213,7 @@ export const SlidePreview: React.FC = () => {
                         {selectedContextImages.descImageUrls.includes(url) && (
                           <div className="absolute inset-0 bg-banana-500/20 border-2 border-banana-500 rounded flex items-center justify-center">
                             <div className="w-6 h-6 bg-banana-500 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">✓</span>
+                              <Check size={12} className="text-white" strokeWidth={3} />
                             </div>
                           </div>
                         )}
@@ -3232,7 +3462,7 @@ export const SlidePreview: React.FC = () => {
       >
         <div className="space-y-4">
           <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="text-2xl">⚠️</div>
+            <AlertTriangle size={22} className="text-amber-500 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm text-amber-800">
                 {t('preview.resolution1KWarningText')}

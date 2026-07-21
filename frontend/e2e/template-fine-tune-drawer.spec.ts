@@ -34,7 +34,8 @@ test('single mode hides the template library entry', async ({ page }) => {
   await page.goto(`${BASE_URL}/project/${projectId}/preview`)
   await page.waitForLoadState('networkidle')
 
-  // No library access in single mode.
+  // No library access in single mode (check inside the template menu).
+  await page.getByTestId('template-menu').click()
   await expect(page.getByRole('button', { name: /模板配置|Template Setup/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /转为单模板|Switch to single/ })).toHaveCount(0)
   // Only the upgrade entry is present.
@@ -48,7 +49,8 @@ test('multi mode exposes the full template library + unifier', async ({ page }) 
   await page.goto(`${BASE_URL}/project/${projectId}/preview`)
   await page.waitForLoadState('networkidle')
 
-  // Library entry + switch-to-single unifier both present.
+  // Library entry + switch-to-single unifier both present (inside the template menu).
+  await page.getByTestId('template-menu').click()
   await expect(page.getByRole('button', { name: /模板配置|Template Setup/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /转为单模板|Switch to single/ })).toBeVisible()
   // The single-mode upgrade entry is gone.

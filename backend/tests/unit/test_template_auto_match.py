@@ -431,3 +431,107 @@ def test_auto_match_endpoint_marks_task_failed_when_submit_fails(
         assert task.status == 'FAILED'
         assert 'Task submission failed: auto-match queue full' in task.error_message
         assert task.completed_at is not None
+
+
+def test_trim_page_for_match_falls_back_to_free_text_schema():
+    """Free-text descriptions ({'text': ..., 'extra_fields': ...}) must not
+    produce empty title/summary (the bug that made auto-match undecided)."""
+    from services.ai_service import AIService
+
+    class FakePage:
+        id = 'p1'
+        order_index = 3
+
+    desc = {
+        'extra_fields': {'排版布局': '左右分栏'},
+        'text': (
+            '--- 页面文字 ---\n**进修基地介绍**\n\n武汉大学中南医院\n'
+            '四大专科区域体系\n--- 页面文字结束 ---\n\n图片素材：\n'
+            '![资料截图](slides/P04.png)'
+        ),
+    }
+    row = AIService._trim_page_for_match(FakePage(), desc)
+    assert row['title'] == '进修基地介绍'
+    assert '武汉大学中南医院' in row['summary']
+
+
+def test_trim_page_for_match_structured_schema_unchanged():
+    from services.ai_service import AIService
+
+    class FakePage:
+        id = 'p1'
+        order_index = 0
+
+    desc = {'title': 'T', 'text_content': ['a', 'b']}
+    row = AIService._trim_page_for_match(FakePage(), desc)
+    assert row['title'] == 'T'
+    assert row['summary'] == 'a / b'
+
+
+def test_trim_page_for_match_falls_back_to_free_text_schema():
+    """Free-text descriptions ({'text': ..., 'extra_fields': ...}) must not
+    produce empty title/summary (the bug that made auto-match undecided)."""
+    from services.ai_service import AIService
+
+    class FakePage:
+        id = 'p1'
+        order_index = 3
+
+    desc = {
+        'extra_fields': {
+            '排版布局': '左侧信息卡，右侧资料截图',
+            '视觉焦点': '右侧资料截图体现真实依据',
+            '演讲者备注': '介绍实践基地',
+        },
+        'text': (
+            '--- 页面文字 ---\n**进修基地介绍**\n\n武汉大学中南医院\n'
+            '四大专科区域体系\n--- 页面文字结束 ---\n\n图片素材：\n'
+            '![资料截图](slides/P04.png)'
+        ),
+    }
+    row = AIService._trim_page_for_match(FakePage(), desc)
+    assert row['title'] == '进修基地介绍'
+    assert '武汉大学中南医院' in row['summary']
+    assert '排版布局' in row['layout_hint']
+    assert '演讲者备注' not in row['layout_hint']
+
+
+def test_trim_page_for_match_structured_schema_unchanged():
+    from services.ai_service import AIService
+
+    class FakePage:
+        id = 'p1'
+        order_index = 0
+
+    desc = {'title': 'T', 'text_content': ['a', 'b']}
+    row = AIService._trim_page_for_match(FakePage(), desc)
+    assert row['title'] == 'T'
+    assert row['summary'] == 'a / b'
+    assert 'layout_hint' not in row
+
+
+def test_trim_template_for_match_includes_identity_fields():
+    """Matcher must see the template's visible text and upload order,
+    otherwise per-page draft libraries cannot be matched one-to-one."""
+    import json
+    from services.ai_service import AIService
+
+    class FakeAsset:
+        id = 'a1'
+        sort_order = 4
+        user_label = None
+        analysis_notes = None
+
+        def get_analysis(self):
+            return {
+                'extracted_text': '进修基地介绍 · 武汉大学中南医院',
+                'template_role': 'content',
+                'layout_structure': 'title-top-two-column',
+                'content_capacity': 'medium',
+                'visual_density': 'medium',
+                'style_keywords': ['medical'],
+            }
+
+    row = AIService._trim_template_for_match(FakeAsset())
+    assert row['sort_order'] == 4
+    assert row['extracted_text'] == '进修基地介绍 · 武汉大学中南医院'

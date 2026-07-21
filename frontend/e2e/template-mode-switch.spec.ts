@@ -44,7 +44,8 @@ test('multi -> single unifies all pages, keeps generated images, persists', asyn
   await page.goto(`${BASE_URL}/project/${projectId}/preview`)
   await page.waitForLoadState('networkidle')
 
-  // Open the switch-to-single dialog from the header.
+  // Open the switch-to-single dialog from the header's template menu.
+  await page.getByTestId('template-menu').click()
   await page.getByRole('button', { name: /转为单模板|Switch to single/ }).click()
 
   // Dialog lists templates; pick "Tpl A" then confirm.
@@ -69,6 +70,7 @@ test('multi -> single unifies all pages, keeps generated images, persists', asyn
   // UI now reflects single mode: the "switch to multi" entry is present.
   await page.reload()
   await page.waitForLoadState('networkidle')
+  await page.getByTestId('template-menu').click()
   await expect(page.getByRole('button', { name: /转为多模板|Switch to multi/ })).toBeVisible()
 })
 
@@ -78,6 +80,7 @@ test('single -> multi flips mode and reveals template-setup entry', async ({ pag
   await page.goto(`${BASE_URL}/project/${projectId}/preview`)
   await page.waitForLoadState('networkidle')
 
+  await page.getByTestId('template-menu').click()
   await page.getByRole('button', { name: /转为多模板|Switch to multi/ }).click()
 
   await expect.poll(async () => {
@@ -85,6 +88,7 @@ test('single -> multi flips mode and reveals template-setup entry', async ({ pag
     return proj.template_mode
   }).toBe('multi')
 
-  // Multi-mode header exposes the template-setup link.
+  // Multi-mode header's template menu exposes the template-setup link.
+  await page.getByTestId('template-menu').click()
   await expect(page.getByRole('button', { name: /模板配置|Template Setup/ })).toBeVisible()
 })

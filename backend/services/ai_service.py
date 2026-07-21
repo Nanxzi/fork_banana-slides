@@ -1408,7 +1408,9 @@ class AIService:
         notes = (asset.analysis_notes or analysis.get('notes') or '')[:200]
         return {
             'asset_id': asset.id,
+            'sort_order': asset.sort_order,
             'user_label': asset.user_label or '',
+            'extracted_text': (analysis.get('extracted_text') or '')[:100],
             'template_role': analysis.get('template_role'),
             'layout_structure': analysis.get('layout_structure'),
             'content_capacity': analysis.get('content_capacity'),
@@ -1426,7 +1428,22 @@ class AIService:
             joined = ' / '.join(str(t) for t in text_blocks if t)
         else:
             joined = str(text_blocks)
+        if not title and not joined:
+            # Free-text description schema: {'text': ..., 'extra_fields': {...}}
+            lines = [
+                ln.strip() for ln in str(desc.get('text') or '').splitlines()
+                if ln.strip() and not ln.strip().startswith('---')
+                and not ln.strip().startswith('![')
+            ]
+            if lines:
+                title = lines[0].strip('*').strip()
+                joined = ' / '.join(lines[1:])
         summary = joined[:100]
+        extra_fields = desc.get('extra_fields') or {}
+        layout_hint = ' / '.join(
+            f'{k}: {v}' for k, v in extra_fields.items()
+            if v and k != '演讲者备注'
+        )[:300] if isinstance(extra_fields, dict) else ''
         body_len = len(joined)
         if body_len < 200:
             density = 'low'
@@ -1434,10 +1451,13 @@ class AIService:
             density = 'medium'
         else:
             density = 'high'
-        return {
+        row = {
             'page_id': page.id,
             'order_index': page.order_index,
             'title': title,
             'summary': summary,
             'content_density': density,
         }
+        if layout_hint:
+            row['layout_hint'] = layout_hint
+        return row

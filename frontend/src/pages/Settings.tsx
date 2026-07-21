@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Home, Key, Image, Zap, Save, RotateCcw, Globe, FileText, Brain, ArrowUp, HelpCircle, Link2, ChevronDown, Volume2, Info, RefreshCw, CheckCircle } from 'lucide-react';
+import { Home, Key, Image, Zap, Save, RotateCcw, Globe, FileText, Brain, ArrowUp, HelpCircle, Link2, ChevronDown, Volume2, Info, RefreshCw, CheckCircle, Lightbulb } from 'lucide-react';
 import { useT } from '@/hooks/useT';
 import { appVersion } from '@/utils/appVersion';
 import { isDesktop } from '@/utils';
@@ -1975,8 +1975,9 @@ export const Settings: React.FC = () => {
             {t('settings.serviceTest.description')}
           </p>
           <div className="pl-4 border-l-4 border-yellow-300 dark:border-yellow-600">
-            <p className="text-sm text-gray-700 dark:text-foreground-secondary">
-              💡 {t('settings.serviceTest.tip')}
+            <p className="text-sm text-gray-700 dark:text-foreground-secondary flex items-start gap-1.5">
+              <Lightbulb size={15} className="flex-shrink-0 mt-0.5" />
+              {t('settings.serviceTest.tip')}
             </p>
           </div>
           <div className="space-y-4">

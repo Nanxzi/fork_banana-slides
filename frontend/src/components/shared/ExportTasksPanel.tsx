@@ -163,7 +163,7 @@ const WarningsModal: React.FC<{
                 key={idx}
                 className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800"
               >
-                <span className="text-amber-500 mt-0.5">•</span>
+                <AlertTriangle size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
                 <span className="break-words">{warning}</span>
               </div>
             ))}

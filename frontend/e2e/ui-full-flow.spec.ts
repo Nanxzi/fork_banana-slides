@@ -347,8 +347,8 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // ====================================
     console.log('🎨 Step 11: Selecting template...')
     
-    // Click "更换模板" button to open template selection modal
-    // The button might be hidden on small screens, so try multiple selectors
+    // Open the template menu, then click "更换模板" to open the template selection modal
+    await page.getByTestId('template-menu').click()
     const changeTemplateBtn = page.locator('button:has-text("更换模板"), button[title="更换模板"]').first()
     await changeTemplateBtn.waitFor({ state: 'visible', timeout: 10000 })
     await changeTemplateBtn.scrollIntoViewIfNeeded()

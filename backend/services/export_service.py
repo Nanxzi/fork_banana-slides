@@ -154,19 +154,19 @@ class ExportWarnings:
         summary = []
         
         if self.style_extraction_failed:
-            summary.append(f"⚠️ {len(self.style_extraction_failed)} 个文本元素样式提取失败")
+            summary.append(f"{len(self.style_extraction_failed)} 个文本元素样式提取失败")
         
         if self.text_render_failed:
-            summary.append(f"⚠️ {len(self.text_render_failed)} 个文本元素渲染失败")
+            summary.append(f"{len(self.text_render_failed)} 个文本元素渲染失败")
         
         if self.image_add_failed:
-            summary.append(f"⚠️ {len(self.image_add_failed)} 张图片添加失败")
+            summary.append(f"{len(self.image_add_failed)} 张图片添加失败")
         
         if self.json_parse_failed:
-            summary.append(f"⚠️ {len(self.json_parse_failed)} 次 AI 响应解析失败")
+            summary.append(f"{len(self.json_parse_failed)} 次 AI 响应解析失败")
         
         for warning in self.other_warnings[:5]:  # 最多显示5条其他警告
-            summary.append(f"⚠️ {warning}")
+            summary.append(f"{warning}")
         
         if len(self.other_warnings) > 5:
             summary.append(f"  ...还有 {len(self.other_warnings) - 5} 条其他警告")
@@ -1696,7 +1696,7 @@ class ExportService:
                 if failed_count > 0:
                     logger.warning(f"样式提取: {failed_count}/{total_text_count} 个元素失败")
                 
-                report_progress("样式提取", f"✓ 完成 {extracted_count}/{total_text_count} 个文本样式提取（{failed_count} 个失败）", 70)
+                report_progress("样式提取", f"完成 {extracted_count}/{total_text_count} 个文本样式提取（{failed_count} 个失败）", 70)
         
         report_progress("构建PPTX", "开始构建可编辑PPTX文件...", 75)
         
@@ -1769,7 +1769,7 @@ class ExportService:
         report_progress("保存文件", "正在保存PPTX文件...", 95)
         if output_file:
             builder.save(output_file)
-            report_progress("完成", f"✓ 可编辑PPTX已保存", 100)
+            report_progress("完成", f"可编辑PPTX已保存", 100)
             logger.info(f"✓ 可编辑PPTX已保存: {output_file}")
             
             # 输出警告摘要
@@ -1779,7 +1779,7 @@ class ExportService:
             return None, warnings
         else:
             pptx_bytes = builder.to_bytes()
-            report_progress("完成", f"✓ 可编辑PPTX已生成", 100)
+            report_progress("完成", f"可编辑PPTX已生成", 100)
             logger.info(f"✓ 可编辑PPTX已生成（{len(pptx_bytes)} 字节）")
             
             # 输出警告摘要

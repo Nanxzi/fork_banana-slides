@@ -1883,12 +1883,12 @@ def export_editable_pptx_with_recursive_analysis_task(
                 "failed": 0,
                 "current_step": "准备中...",
                 "percent": 0,
-                "messages": ["🚀 开始导出可编辑PPTX..."]  # 消息日志
+                "messages": ["开始导出可编辑PPTX..."]  # 消息日志
             })
             db.session.commit()
             
             # 进度回调函数 - 更新数据库中的进度
-            progress_messages = ["🚀 开始导出可编辑PPTX..."]
+            progress_messages = ["开始导出可编辑PPTX..."]
             max_messages = 10  # 最多保留最近10条消息
             
             def progress_callback(step: str, message: str, percent: int):
@@ -1977,7 +1977,7 @@ def export_editable_pptx_with_recursive_analysis_task(
             download_path = f"/files/{project_id}/exports/{filename}"
             
             # 添加完成消息
-            progress_messages.append("✅ 导出完成！")
+            progress_messages.append("导出完成！")
             
             # 添加警告信息（如果有）
             warning_messages = []
@@ -1994,7 +1994,7 @@ def export_editable_pptx_with_recursive_analysis_task(
                     "total": 100,
                     "completed": 100,
                     "failed": 0,
-                    "current_step": "✓ 导出完成",
+                    "current_step": "导出完成",
                     "percent": 100,
                     "messages": progress_messages,
                     "download_url": download_path,
@@ -2074,7 +2074,7 @@ def export_video_task(
             }
         logger.info(f"[export_video] voice={voice!r} elevenlabs_enabled={_settings.elevenlabs_enabled} elevenlabs_config={'set' if elevenlabs_config else 'None'}")
 
-        progress_messages = ["🚀 开始导出讲解视频..."]
+        progress_messages = ["开始导出讲解视频..."]
         max_messages = 10
 
         def progress_callback(step: str, message: str, percent: int):
@@ -2334,7 +2334,7 @@ def export_video_task(
 
             # ── Step 4: 标记完成 ──
             download_path = f"/files/{project_id}/exports/{filename}"
-            progress_messages.append("✅ 视频导出完成！")
+            progress_messages.append("视频导出完成！")
 
             task = Task.query.get(task_id)
             if task:
@@ -2344,7 +2344,7 @@ def export_video_task(
                     "total": 100,
                     "completed": 100,
                     "failed": 0,
-                    "current_step": "✓ 导出完成",
+                    "current_step": "导出完成",
                     "percent": 100,
                     "messages": progress_messages,
                     "download_url": download_path,
