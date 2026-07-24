@@ -73,12 +73,13 @@ _OUTLINE_JSON_FORMAT = """\
 1. Simple format (for short PPTs without major sections):
 [{"title": "title1", "points": ["point1", "point2"]}, {"title": "title2", "points": ["point1", "point2"]}]
 
-2. Part-based format (for longer PPTs with major sections):
+2. Part-based format (for longer PPTs with major sections). The cover (and TOC, if any) are \
+flat top-level entries — they belong to the deck as a whole, never inside a "part" group:
 [
+    {"title": "Welcome", "points": ["point1", "point2"]},
     {
     "part": "Part 1: Introduction",
     "pages": [
-        {"title": "Welcome", "points": ["point1", "point2"]},
         {"title": "Overview", "points": ["point1", "point2"]}
     ]
     },
@@ -90,6 +91,24 @@ _OUTLINE_JSON_FORMAT = """\
     ]
     }
 ]"""
+
+# 论断式大纲（assertion-evidence）：大纲承载每页结论，描述层据此写标题、定视觉主次
+_OUTLINE_TAKEAWAY_RULE = """\
+Takeaway rule:
+- For content pages, the FIRST point must be the page's takeaway: one complete assertion \
+sentence stating the conclusion the audience should remember (e.g. "Compute limits, not \
+lack of ideas, caused every AI winter"), never a topic phrase (e.g. "AI winter review").
+- State the conclusion ITSELF; do not merely announce that a conclusion exists. Write \
+"Self-hosting breaks even within 12-18 months once daily requests pass the threshold", NOT \
+"The break-even analysis reveals when to switch" — the latter looks like a sentence but only \
+names the topic while hiding the actual answer.
+- Follow the takeaway with 1-2 points giving the EVIDENCE behind it — concrete data, examples, \
+or mechanisms — not a reworded restatement of the takeaway itself.
+- For functional pages (cover, table of contents, section divider, thank-you/Q&A), points \
+only describe what the page contains — do not force assertions.
+- The cover and table of contents page belong to the deck as a whole, never to a part: do \
+not nest them under a `# Part` heading, and do not give them a "part" value.
+- Read in order, the takeaways should form a coherent storyline of the whole deck."""
 
 
 # --- 辅助函数 ---
@@ -197,11 +216,36 @@ def parse_narration_generation_result(result: str) -> Dict[int, str]:
     return parsed
 
 
+# 预置字段的生成指令：定义 + 排他规则 + 长度预算。字段间不得重叠：
+# 内容归页面文字，视觉内容归配图与素材，编排归版式与重点，讲稿归演讲者备注。
+EXTRA_FIELD_INSTRUCTIONS = {
+    '配图与素材': (
+        '配图与素材：[本页除文字外要展示什么：需要绘制的图表/图示/插画，写明类型与要表达的内容'
+        '（如"折线图：2020-2025 营收增长，突出 2023 年拐点"）；'
+        '要使用的真实素材图片以 markdown 引用（如 ![说明](/files/xxx/image.png)）。'
+        '不要写正文文字（属于页面文字），不要写摆放位置（属于版式与重点）。最多 3 项；无需配图时省略此字段]'
+    ),
+    '版式与重点': (
+        '版式与重点：[不超过两句：第一句写版式结构'
+        '（如：上标题下两栏 / 左文右图 / 横向时间线 / 大图铺底文字浮层 / 居中大标题），'
+        '第二句写视觉重点（观众第一眼应看到什么、哪个元素放大或强调）。'
+        '只描述已有内容如何编排，不引入新内容，不复述页面文字]'
+    ),
+    '演讲者备注': (
+        '演讲者备注：[演讲时的口头讲解要点：推理展开、页间过渡、补充例子。'
+        '此字段不会渲染到页面上，也不影响生图]'
+    ),
+}
+
+
 def _format_extra_field_instructions(extra_fields: list | None) -> str:
-    """将额外字段列表格式化为 prompt 中的输出要求。"""
+    """将额外字段列表格式化为 prompt 中的输出要求。预置字段用定义好的指令，自定义/旧字段用通用格式。"""
     if not extra_fields:
         return ''
-    parts = [f'{f}：[关于{f}的建议]' for f in extra_fields]
+    parts = [
+        EXTRA_FIELD_INSTRUCTIONS.get(f, f'{f}：[关于{f}的建议，只写其他字段未覆盖的信息]')
+        for f in extra_fields
+    ]
     return '\n'.join([''] + parts)  # 前导换行
 
 
@@ -288,6 +332,8 @@ You can organize the content in two ways:
 
 {_OUTLINE_JSON_FORMAT}
 
+{_OUTLINE_TAKEAWAY_RULE}
+
 Choose the format that best fits the content. Use parts when the PPT has clear major sections.
 Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information.
 
@@ -314,31 +360,41 @@ Output formats:
 1. Simple format, for short PPTs without major sections:
 
 ## Slide title
-One concise sentence describing what this slide should cover. The sentence may include the slide’s role, main idea, key supporting points, examples, data, or transition logic when relevant.
+For content pages: one assertion sentence stating this page's takeaway (the conclusion the audience should remember), optionally followed by key supporting points, examples, data, or transition logic. For functional pages (cover, TOC, section divider): one sentence describing what the page contains.
 
 ## Slide title
-One concise sentence describing what this slide should cover.
+Page takeaway sentence.
 
 2. Part-based format, for longer PPTs with clear major sections:
+
+## Cover slide title
+One sentence describing what the cover contains (title, subtitle, presenter). The cover always \
+comes before the first `# Part` heading and carries no part.
 
 # Part 1: Section name
 
 ## Slide title
-One concise sentence describing what this slide should cover.
+Page takeaway sentence.
 
 ## Slide title
-One concise sentence describing what this slide should cover.
+Page takeaway sentence.
 
 # Part 2: Section name
 
 ## Slide title
-One concise sentence describing what this slide should cover.
+Page takeaway sentence.
 
 Constraints:
 - Title should not contain page number.
 - Choose the format that best fits the content. Use parts when the PPT has clear major sections.
+- The cover and table of contents page belong to the deck as a whole, never to a part: place \
+them before the first `# Part` heading so they carry no part.
 - Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information.
 - Keep content at the outline level: focus on intent, topic, and logic, not polished final wording.
+- Takeaway assertions must be complete, polished sentences — the one exception to outline-level brevity.
+- Read in order, the page takeaways should form a coherent storyline.
+- A takeaway states a conclusion (e.g. "Compute limits, not lack of ideas, caused every AI winter"), never a topic phrase (e.g. "AI winter review"), and never a sentence that only announces a conclusion exists without stating it (e.g. "The break-even analysis reveals when to switch").
+- Do not output a deck-level document title. Use H1 (`#`) only for part headers in the part-based format; the cover is a regular `##` page.
 - Each outline page will eventually be converted into an actual slide. Therefore, if a slide should not appear in the final deck, do not output that page from the beginning.
 
 The user's request: {idea_prompt}.
@@ -437,6 +493,7 @@ Important rules:
 - If the text has clear sections/parts, use the part-based format
 - Preserve the logical structure and organization from the original text
 - The points should be concise summaries of the main content for each page
+- If a page argues something, phrase its FIRST point as that page's takeaway assertion (found in or implied by the user's text); functional pages (cover, TOC, section divider) are exempt; the cover and TOC belong to the deck as a whole, never to a part — do not nest them under a `# Part` heading or `"part"` value
 
 Now extract the outline structure from the description text above. Return only the JSON, don't include any other text.
 {get_language_instruction(language)}
@@ -456,10 +513,9 @@ def get_description_to_outline_prompt_markdown(project_context: 'ProjectContext'
 [此处使用 markdown 直接放置正文文字，细致程度要求：{DETAIL_LEVEL_SPECS[detail_level]}。可包含 LaTeX 公式、表格等内容，不要重复添加页面标题，不要把用户的设计意图显式地放在页面文字中。]
 
 --- 页面文字结束 ---
-
-图片素材：
-[如果参考文件或用户输入中存在相关图片素材，以 markdown 格式引用，如 ![描述](/files/xxx/image.png)；否则省略此部分。]
 {_format_extra_field_instructions(extra_fields)}
+
+素材图片（以 /files/ 开头的本地路径）以 markdown 格式引用，如 ![描述](/files/xxx/image.png)，优先写入"配图与素材"字段；若该字段未启用，则直接附在页面文字之后。
 """
 
     prompt = (f"""\
@@ -481,6 +537,7 @@ Output rules:
 {description_format}
 - Preserve layout, style, material, and content details in the page description
 - Keep the outline points at the same level as normal idea-generated outlines: focus on slide intent, narrative role, topic, logic, transition, or design purpose
+- If a page argues something, phrase its FIRST outline point as that page's takeaway assertion (found in or implied by the user's text); functional pages (cover, TOC, section divider) are exempt; the cover and TOC belong to the deck as a whole, never to a part — do not nest them under a `# Part` heading or `"part"` value
 - Do not put final slide copy, exact page text, long evidence lists, or detailed visual/layout instructions in the outline points
 - Put concrete page text, data, examples, layout, style, and material details only in the page description section
 - Use `<!-- PAGE_END -->` after each page
@@ -489,7 +546,8 @@ Output rules:
 Example:
 ## 市场机会概览
 <!-- OUTLINE_POINTS -->
-- Establish why this opportunity matters and how it connects the audience from macro trend to business relevance.
+- 需求正从单点工具转向端到端解决方案，这是本轮增长的真正驱动力。
+- 用三年增长数据说明市场规模与结构变化。
 <!-- PAGE_DESCRIPTION -->
 --- 页面文字 ---
 - 过去三年目标市场保持高速增长
@@ -497,8 +555,8 @@ Example:
 
 --- 页面文字结束 ---
 
-图片素材：
-使用趋势图展示增长曲线，整体保持专业克制的商务风格
+配图与素材：折线图：过去三年目标市场增长曲线，突出增速
+版式与重点：上标题下内容，左侧要点右侧趋势图；趋势图为视觉重点
 <!-- PAGE_END -->
 
 Now split the description text above and output the page-by-page structure. Output `<!-- END -->` on the last line when finished.
@@ -541,12 +599,13 @@ You are a helpful assistant that modifies PPT outlines based on user requirement
 1. 简单格式（适用于没有主要章节的短 PPT）：
 [{{"title": "title1", "points": ["point1", "point2"]}}, {{"title": "title2", "points": ["point1", "point2"]}}]
 
-2. 基于章节的格式（适用于有明确主要章节的长 PPT）：
+2. 基于章节的格式（适用于有明确主要章节的长 PPT）。封面（及目录，如有）是顶层独立条目，
+属于整个 deck，不嵌入任何 "part" 分组：
 [
+    {{"title": "欢迎", "points": ["point1", "point2"]}},
     {{
     "part": "第一部分：引言",
     "pages": [
-        {{"title": "欢迎", "points": ["point1", "point2"]}},
         {{"title": "概述", "points": ["point1", "point2"]}}
     ]
     }},
@@ -560,6 +619,8 @@ You are a helpful assistant that modifies PPT outlines based on user requirement
 ]
 
 选择最适合内容的格式。当 PPT 有清晰的主要章节时使用章节格式。
+
+{_OUTLINE_TAKEAWAY_RULE}
 
 现在请根据用户要求修改大纲，只输出 JSON 格式的大纲，不要包含其他文字。
 {get_language_instruction(language)}
@@ -590,7 +651,8 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
 {page_outline}
 {"**除非特殊要求，第一页的内容需要保持极简，只放标题副标题以及演讲人等（输出到标题后）, 不添加任何素材。**" if page_index == 1 else ""}
 ## 重要提示
-生成的"页面文字"部分会直接渲染到PPT页面上，因此请务必不要包含任何额外的说明性文字或注释，也不要把用户的设计意图显式地放在页面文字中。
+- "页面文字"中的内容会被逐字渲染到 PPT 页面上：只写真正要出现在页面上的文字，不要包含任何说明性文字、注释或设计意图（设计意图写入下方对应字段）。
+- 标题规则：内容页的标题优先写成论断句——一句话陈述本页结论（如"算力瓶颈才是历次 AI 寒冬的根因"），而不是话题短语（如"AI 寒冬回顾"）。大纲中该页的第一条 takeaway 要点是标题的首选来源。封面、目录、章节过渡等功能页保持简短标题。
 
 ## 输出格式
 
@@ -599,13 +661,10 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
 [此处使用markdown直接放置正文文字, 细致程度要求：{DETAIL_LEVEL_SPECS[detail_level]}\n\n, 可包含latex公式、表格等内容, 不要重复添加]
 
 --- 页面文字结束 ---
-
-图片素材:
-[如果文件中存在图片请积极添加； 否则忽略图片素材字段]
 {_format_extra_field_instructions(extra_fields)}
 
-## 关于图片
-如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请将这些图片以markdown格式输出，例如：![图片描述](/files/mineru/xxx/image.png)。这些图片会被包含在PPT页面中。
+## 关于素材图片
+如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请以 markdown 格式引用（如 ![图片描述](/files/mineru/xxx/image.png)），写入"配图与素材"字段；若该字段未启用，则直接附在页面文字之后。这些图片会被包含在PPT页面中。
 {get_language_instruction(language)}
 """)
 
@@ -638,12 +697,13 @@ def get_all_descriptions_stream_prompt(project_context: 'ProjectContext',
 {_format_requirements(project_context.description_requirements, "description")}请为每一页依次生成描述。先输出 `<!-- BEGIN -->` 标记开始，然后逐页输出内容，每页用 `<!-- PAGE_END -->` 结束，全部完成后输出 `<!-- END -->`。
 
 ## 重要提示
-- 生成的页面文字会直接渲染到PPT页面上，请务必不要包含任何额外的说明性文字或注释。
+- "页面文字"中的内容会被逐字渲染到 PPT 页面上：只写真正要出现在页面上的文字，不要包含任何说明性文字、注释或设计意图（设计意图写入下方对应字段）。
+- 标题规则：内容页的标题优先写成论断句——一句话陈述本页结论（如"算力瓶颈才是历次 AI 寒冬的根因"），而不是话题短语（如"AI 寒冬回顾"）。大纲中该页的第一条 takeaway 要点是标题的首选来源。封面、目录、章节过渡等功能页保持简短标题。
 - **第一页（封面页）保持极简**，只放标题、副标题、演讲人等信息，不添加任何素材。
 - 细致程度要求：{DETAIL_LEVEL_SPECS[detail_level]}
 
 ## 输出格式
-每页默认包含"页面文字"和"图片素材"两个部分。图片素材用于引用参考文件中的图片（以 /files/ 开头的本地路径），如果参考文件中没有相关图片则省略该部分。
+每页包含"页面文字"与下列额外字段。素材图片（以 /files/ 开头的本地路径）以 markdown 格式引用，优先写入"配图与素材"字段。
 ```
 <!-- BEGIN -->
 
@@ -651,9 +711,6 @@ def get_all_descriptions_stream_prompt(project_context: 'ProjectContext',
 [第1页文字内容，可包含标题、副标题、要点、latex公式、表格等，根据实际需求选择，避免堆砌和重复. 不要把用户的设计意图显式地放在页面文字中。]
 
 --- 页面文字结束 ---
-
-图片素材：
-[如果参考文件中存在相关图片，以markdown格式引用，如 ![描述](/files/xxx/image.png)；否则省略此部分。如果用户上传了图片素材请积极地添加]
 {_format_extra_field_instructions(extra_fields)}
 <!-- PAGE_END -->
 
@@ -661,9 +718,6 @@ def get_all_descriptions_stream_prompt(project_context: 'ProjectContext',
 [第2页文字内容]
 
 --- 页面文字结束 ---
-
-图片素材：
-[同上]
 {_format_extra_field_instructions(extra_fields)}
 <!-- PAGE_END -->
 ...
@@ -708,11 +762,12 @@ Each element should be a string containing the page description in the following
 - [要点2]
 ...
 
-其他页面素材（如果有排版、风格、素材等细节）
+配图与素材：[本页要展示的图表/图示/素材图片引用，无则省略整行]
+版式与重点：[版式结构与视觉重点，无则省略整行]
 
 Example output format:
 [
-    "页面标题：人工智能的诞生\\n页面文字：\\n- 1950 年，图灵提出"图灵测试"\\n- 奠定了AI的理论基础\\n\\n其他页面素材：\\n排版：标题居中，大字号\\n风格：科技感蓝色背景",
+    "页面标题：人工智能的诞生\\n页面文字：\\n- 1950 年，图灵提出"图灵测试"\\n- 奠定了AI的理论基础\\n\\n版式与重点：标题居中，大字号",
     "页面标题：AI 的发展历程\\n页面文字：\\n- 1950年代：符号主义...",
     ...
 ]
@@ -721,7 +776,7 @@ Important rules:
 - Split the description text according to the outline structure
 - Each page description should match the corresponding page in the outline
 - Preserve all important content from the original text, including layout details (排版细节), style requirements (风格要求), material specifications (素材说明), and any other design requirements
-- If the user described layout, style, or materials for a page, include them in the "其他页面素材" section
+- If the user described materials or images for a page, put them in the "配图与素材" line; if the user described layout, composition, or emphasis, put them in the "版式与重点" line
 - Keep the format consistent with the example above
 - If a page in the outline doesn't have a clear description in the text, create a reasonable description based on the outline
 
@@ -753,7 +808,16 @@ def get_descriptions_refinement_prompt(current_descriptions: List[Dict], user_re
         title = desc.get('title', '未命名')
         content = desc.get('description_content', '')
         if isinstance(content, dict):
-            content = content.get('text', '')
+            # 额外字段一并带上，否则精修会在不知情的情况下把它们改没
+            extra_fields = content.get('extra_fields') or {}
+            content = content.get('text') or ''
+            if isinstance(extra_fields, dict):
+                field_lines = [
+                    f"{name}：{value}" for name, value in extra_fields.items()
+                    if value is not None and str(value).strip() != ""
+                ]
+                if field_lines:
+                    content = '\n'.join([content, *field_lines]) if content else '\n'.join(field_lines)
 
         if content:
             has_any_description = True
@@ -787,9 +851,13 @@ You are a helpful assistant that modifies PPT page descriptions based on user re
 - [要点1]
 - [要点2]
 ...
-其他页面素材（如果有请加上，包括markdown图片链接等）
+配图与素材：[本页要展示的图表/图示/素材图片引用，无则省略整行]
+版式与重点：[版式结构与视觉重点，无则省略整行]
 
-提示：如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请将这些图片以markdown格式输出，例如：![图片描述](/files/mineru/xxx/image.png)，而不是作为普通文本。
+注意：
+- "页面文字"会被逐字渲染到页面上，不要把设计意图写进去；设计意图写入上面对应字段。
+- 原描述中已有的字段行请保留并按用户要求调整，不要凭空删除。
+- 如果参考文件中包含以 /files/ 开头的本地文件URL图片（例如 /files/mineru/xxx/image.png），请将这些图片以markdown格式输出，例如：![图片描述](/files/mineru/xxx/image.png)，而不是作为普通文本。
 
 请返回一个 JSON 数组，每个元素是一个字符串，对应每个页面的修改后描述（按页面顺序）。
 

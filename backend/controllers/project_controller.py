@@ -1366,9 +1366,11 @@ def refine_descriptions(project_id):
         # Update pages with refined descriptions
         for page, refined_desc in zip(pages, refined_descriptions):
             desc_content = {
-                "text": refined_desc,
+                "text": refined_desc.get('text', ''),
                 "generated_at": datetime.utcnow().isoformat()
             }
+            if refined_desc.get('extra_fields'):
+                desc_content['extra_fields'] = refined_desc['extra_fields']
             page.set_description_content(desc_content)
             page.status = 'DESCRIPTION_GENERATED'
         

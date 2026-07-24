@@ -38,6 +38,21 @@ from config import get_config
 logger = logging.getLogger(__name__)
 
 
+# Matches H1 headings that carry explicit part/section semantics, e.g.
+# "Part 1: ...", "Section A", "第一章", "第2部分", "第三节". Used to tell a real
+# opening chapter apart from a deck-level document title that has no such marker.
+_PART_HEADER_RE = re.compile(
+    r'^\s*(part|section|chapter|module|unit)\b'
+    r'|第\s*[0-9零一二三四五六七八九十百千]+\s*[章部节篇]',
+    re.IGNORECASE,
+)
+
+
+def _is_part_header(heading: str) -> bool:
+    """Whether an H1 line reads as a part/section header rather than a deck title."""
+    return bool(_PART_HEADER_RE.search(heading or ''))
+
+
 def _describe_json_response_text(text: str) -> str:
     """Return a compact, non-secret hint about an AI response that failed JSON parsing."""
     stripped = str(text or "").strip()
@@ -383,6 +398,7 @@ class AIService:
         pages = []
         current_part = None
         current_page = None
+        seen_page = False
 
         for line in markdown.split('\n'):
             stripped = line.strip()
@@ -390,9 +406,16 @@ class AIService:
                 continue
 
             if stripped.startswith('# ') and not stripped.startswith('## '):
-                # Part header
-                current_part = stripped[2:].strip()
+                heading = stripped[2:].strip()
+                # A bare H1 before the first page is the deck-level document title,
+                # not a part — ignore it so it doesn't pollute the cover's part. But
+                # keep a real opening chapter (e.g. "第一章") when a deck starts
+                # directly with a section and has no separate cover.
+                if not seen_page and not _is_part_header(heading):
+                    continue
+                current_part = heading
             elif stripped.startswith('## '):
+                seen_page = True
                 # New page — flush previous
                 if current_page:
                     pages.append(current_page)
@@ -424,7 +447,9 @@ class AIService:
         creation_type = project_context.creation_type or 'idea'
 
         extra_field_names = self._get_extra_field_names() if creation_type == 'descriptions' else []
-        field_pattern = self._build_extra_field_pattern(extra_field_names)
+        field_pattern = self._build_extra_field_pattern(
+            self._get_parseable_field_names() if creation_type == 'descriptions' else []
+        )
 
         if creation_type == 'outline':
             prompt = get_outline_parsing_prompt_markdown(project_context, language)
@@ -444,6 +469,7 @@ class AIService:
         current_mode = 'points'
         current_field = None
         stream_complete = False
+        seen_page = False
 
         def _new_page(title: str) -> Dict:
             page = {
@@ -473,7 +499,7 @@ class AIService:
             return result
 
         def _process_line(line: str, stripped: str):
-            nonlocal current_part, current_page, current_mode, current_field, stream_complete
+            nonlocal current_part, current_page, current_mode, current_field, stream_complete, seen_page
 
             if stripped == '<!-- END -->':
                 stream_complete = True
@@ -497,10 +523,18 @@ class AIService:
                 return None
 
             if stripped.startswith('# ') and not stripped.startswith('## '):
-                current_part = stripped[2:].strip()
+                heading = stripped[2:].strip()
+                # A bare H1 before the first page is the deck-level document title,
+                # not a part — ignore it so it doesn't pollute the cover's part. But
+                # keep a real opening chapter (e.g. "第一章") when a deck starts
+                # directly with a section and has no separate cover.
+                if not seen_page and not _is_part_header(heading):
+                    return None
+                current_part = heading
                 return None
 
             if stripped.startswith('## '):
+                seen_page = True
                 finished = _finalize_page(current_page)
                 current_page = _new_page(stripped[3:].strip())
                 current_mode = 'points'
@@ -691,6 +725,8 @@ class AIService:
 
         遍历 field_names，按出现顺序依次提取每个字段的内容。
         两个相邻字段之间的文本属于前一个字段。
+        字段行可以位于文本开头或任意行首——开头的字段若不被识别，
+        会残留在正文里被逐字渲染到幻灯片上。
         """
         if not field_names:
             return text, {}
@@ -699,7 +735,7 @@ class AIService:
         # 找到所有字段在文本中的起始位置
         positions = []
         for name in field_names:
-            match = re.search(rf'\n{re.escape(name)}[：:]\s*', text)
+            match = re.search(rf'(?:^|\n){re.escape(name)}[：:]\s*', text)
             if match:
                 positions.append((match.start(), match.end(), name))
 
@@ -734,7 +770,20 @@ class AIService:
             return settings.get_description_extra_fields()
         except Exception:
             logger.warning("Failed to get extra field names from settings", exc_info=True)
-            return ['视觉元素', '视觉焦点', '排版布局', '演讲者备注']
+            return ['配图与素材', '版式与重点', '演讲者备注']
+
+    @classmethod
+    def _get_parseable_field_names(cls) -> list:
+        """解析用字段名 = 当前配置字段 + 旧字段名。
+
+        指令只用配置字段（不能让模型输出已停用的字段名），但解析要宽容：
+        模型若沿用参考资料里的旧字段名，必须切进 extra_fields，
+        否则字段行会留在页面文字里被逐字渲染到幻灯片上。
+        """
+        from models import Settings
+        return list(dict.fromkeys(
+            [*cls._get_extra_field_names(), *Settings.LEGACY_FIELD_EQUIV.keys()]
+        ))
 
     def generate_page_description(self, project_context: ProjectContext, outline: List[Dict],
                                  page_outline: Dict, page_index: int, language='zh',
@@ -772,7 +821,7 @@ class AIService:
         response_text = self.text_provider.generate_text(desc_prompt, thinking_budget=actual_budget)
 
         text = dedent(response_text)
-        description_text, extra_fields = self._parse_extra_fields(text, extra_field_names)
+        description_text, extra_fields = self._parse_extra_fields(text, self._get_parseable_field_names())
 
         result = {'text': description_text}
         if extra_fields:
@@ -801,7 +850,7 @@ class AIService:
         )
 
         # Build regex pattern to detect any configured extra field header
-        field_pattern = self._build_extra_field_pattern(extra_field_names)
+        field_pattern = self._build_extra_field_pattern(self._get_parseable_field_names())
 
         actual_budget = self._get_text_thinking_budget()
         buffer = ""
@@ -1233,19 +1282,20 @@ class AIService:
                            project_context: ProjectContext,
                            outline: List[Dict] = None,
                            previous_requirements: Optional[List[str]] = None,
-                           language='zh') -> List[str]:
+                           language='zh') -> List[Dict]:
         """
         根据用户要求修改已有页面描述
-        
+
         Args:
             current_descriptions: 当前的页面描述列表，每个元素包含 {index, title, description_content}
             user_requirement: 用户的新要求
             project_context: 项目上下文对象，包含所有原始信息
             outline: 完整的大纲结构（可选）
             previous_requirements: 之前的修改要求列表（可选）
-        
+
         Returns:
-            修改后的页面描述列表（字符串列表）
+            修改后的页面描述列表，每个元素为 {'text': ..., 'extra_fields': {...}}。
+            额外字段必须切分出来，否则字段行会被当作页面文字渲染到幻灯片上。
         """
         refinement_prompt = get_descriptions_refinement_prompt(
             current_descriptions=current_descriptions,
@@ -1257,11 +1307,30 @@ class AIService:
         )
         descriptions = self.generate_json(refinement_prompt, thinking_budget=1000)
 
-        # 确保返回的是字符串列表
-        if isinstance(descriptions, list):
-            return [str(desc) for desc in descriptions]
-        else:
+        if not isinstance(descriptions, list):
             raise ValueError("Expected a list of page descriptions, but got: " + str(type(descriptions)))
+
+        field_names = self._get_parseable_field_names()
+        results = []
+        for desc in descriptions:
+            # 模型偶尔会返回对象而非字符串；直接 str() 会把 Python dict/list
+            # 字面量渲染到幻灯片上，先按「字段：值」逐行摊平再解析
+            if isinstance(desc, dict):
+                lines = []
+                for k, v in desc.items():
+                    if not v:
+                        continue
+                    value = '\n'.join(str(i) for i in v) if isinstance(v, list) else str(v)
+                    lines.append(f'{k}：{value}')
+                desc_text = '\n'.join(lines)
+            else:
+                desc_text = str(desc)
+            text, extra_fields = self._parse_extra_fields(desc_text, field_names)
+            result = {'text': text}
+            if extra_fields:
+                result['extra_fields'] = extra_fields
+            results.append(result)
+        return results
 
     def extract_page_content(self, markdown_text: str, language: str = 'zh') -> Dict:
         """

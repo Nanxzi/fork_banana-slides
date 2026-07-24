@@ -490,14 +490,15 @@ class TestProjectOutlineStream:
         prompt = get_description_to_outline_prompt_markdown(
             context,
             language='zh',
-            extra_fields=['视觉元素'],
+            extra_fields=['配图与素材'],
         )
 
         assert '<!-- PAGE_DESCRIPTION -->' in prompt
         assert '--- 页面文字 ---' in prompt
         assert '--- 页面文字结束 ---' in prompt
-        assert '图片素材：' in prompt
-        assert '视觉元素：' in prompt
+        # 素材引用并入"配图与素材"字段，不再有独立的"图片素材"段
+        assert '图片素材：' not in prompt
+        assert '配图与素材：' in prompt
         assert '页面标题：' not in prompt
 
     def test_outline_stream_parses_legacy_outline_only_markdown(self):
@@ -520,6 +521,40 @@ class TestProjectOutlineStream:
             {'title': '第一页', 'points': ['要点1', '一句补充'], 'part': '第一章'},
             {'title': '第二页', 'points': ['要点2'], 'part': '第一章'},
         ]
+        assert pages[-1] == {'__stream_complete__': True}
+
+    def test_outline_stream_ignores_deck_title_before_cover(self):
+        """SSE 流式解析：封面前的 deck 级 H1 文档标题不得污染封面 part；
+        封面之后合法的 # Part 分节仍需生效。"""
+        from services.ai_service import AIService, ProjectContext
+
+        class FakeTextProvider:
+            def generate_text_stream(self, prompt, thinking_budget=0):
+                yield (
+                    '# 决策汇报：AI 推理架构的战略选择\n'
+                    '## 决策汇报：AI 推理架构的战略选择\n'
+                    '- 副标题与汇报人信息\n'
+                    '# 第一部分：经济性分析\n'
+                    '## 现有支出呈指数级增长\n'
+                    '- 成本失控风险，亟需替代方案\n'
+                    '<!-- END -->'
+                )
+
+        service = AIService(text_provider=FakeTextProvider(), image_provider=None, caption_provider=None)
+        context = ProjectContext({
+            'creation_type': 'outline',
+            'outline_text': 'x',
+        })
+
+        pages = list(service.generate_outline_stream(context, language='zh'))
+        content = pages[:-1]
+
+        assert len(content) == 2
+        # 封面页：deck 标题被忽略，不产生 part
+        assert content[0]['title'] == '决策汇报：AI 推理架构的战略选择'
+        assert 'part' not in content[0]
+        # 封面之后的合法分节仍然生效
+        assert content[1].get('part') == '第一部分：经济性分析'
         assert pages[-1] == {'__stream_complete__': True}
 
     def test_description_stream_parser_binds_description_to_same_page(self):
