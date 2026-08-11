@@ -22,7 +22,7 @@
   <a href="https://github.com/Anionex/banana-slides/stargazers"><img src="https://img.shields.io/github/stars/Anionex/banana-slides?style=flat-square&color=FFD700" alt="GitHub Stars"></a>
   <a href="https://github.com/Anionex/banana-slides/network"><img src="https://img.shields.io/github/forks/Anionex/banana-slides?style=flat-square&color=FFD700" alt="GitHub Forks"></a>
   <a href="https://github.com/Anionex/banana-slides/watchers"><img src="https://img.shields.io/github/watchers/Anionex/banana-slides?style=flat-square&color=FFD700" alt="GitHub Watchers"></a>
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.2"><img src="https://img.shields.io/badge/version-v0.9.0--rc.2-44cc11?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.3"><img src="https://img.shields.io/badge/version-v0.9.0--rc.3-44cc11?style=flat-square" alt="Version"></a>
   <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Anionex/banana-slides?color=0055aa&style=flat-square" alt="License"></a>
   <br>
   <img src="https://img.shields.io/badge/Docker-Build-4A90D9?logo=docker&logoColor=white&style=flat-square" alt="Docker Build">
@@ -38,7 +38,7 @@
   &nbsp;|&nbsp;
   <a href="https://docs.bananaslides.online/"><b>📖 文档</b></a>
   &nbsp;|&nbsp;
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.2"><b>💻 桌面版 RC2</b></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.3"><b>💻 桌面版 RC3</b></a>
   &nbsp;|&nbsp;
  <a href="https://github.com/Anionex/banana-slides#-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><b>部署方法</b></a>
 </p>
@@ -49,6 +49,7 @@
 </div>
 
 ## 🔥 最新动态
+- **[2026-08-06]**：0.9.0 候选版本 3 发布，重点修复火山引擎 Agent Plans 配置与凭据恢复，并带来大纲流隔离、幻灯片就地编辑、字段契约 v2、模板匹配和可编辑 PPTX 导出改进；[一键下载并安装](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.3)
 - **[2026-07-15]**：自定义大纲/描述要求预设现在会自动修复损坏的浏览器缓存，保留仍然有效的预设，避免异常缓存阻断编辑页面
 - **[2026-07-11]**：0.9.0 候选版本 2 发布，包含 RC1 的全部能力，并修复 Windows 桌面端可编辑 PPTX 的 MinerU 目录不一致、讲解视频 FFprobe 路径错误；[一键下载并安装](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.2)
 - **[2026-06-23]**：逐页模板上线 — 支持统一模板 / 每页独立模板两种模式，可上传图片或 PDF 构建项目模板库，AI 自动解析模板风格并一键为每页智能匹配，也可逐页手动绑定；两种模式随时双向切换（[文档](https://docs.bananaslides.online/zh/features/templates)）
@@ -189,6 +190,7 @@
 | 🔄 进行中 | 网络搜索 |
 | 🔄 进行中 | Agent 模式 |
 | ✅ 已完成 | TTS 讲解视频导出（中/英/日多音色、字幕） |
+
 
 ## 📦 使用方法
 
@@ -507,7 +509,7 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 
 欢迎在群中提出新功能建议或反馈～
 
-<img width="312" alt="image" src="https://github.com/user-attachments/assets/165f7d53-1d42-47c7-840b-7740a4717181" />
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/dd71fdb5-1ee8-4129-8596-f6e11b7962a0" />
 
 
 
@@ -518,8 +520,6 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 
 <p>
   <a href="https://x.com/anion_ex"><img src="https://img.shields.io/badge/X-@anion__ex-000000?style=flat-square&logo=x&logoColor=white" alt="X (Twitter)"></a>
-  <a href="https://www.xiaohongshu.com/user/profile/62e8f580000000001902fc9d"><img src="https://img.shields.io/badge/小红书-Anion-FF2442?style=flat-square&logo=xiaohongshu&logoColor=white" alt="小红书"></a>
-  <a href="https://space.bilibili.com/477162339"><img src="https://img.shields.io/badge/Bilibili-Anion-00A1D6?style=flat-square&logo=bilibili&logoColor=white" alt="Bilibili"></a>
 </p>
 
 
@@ -547,9 +547,9 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 ## 📄 许可证
 
 本项目采用 **GNU Affero General Public License v3.0（AGPL-3.0）** 开源，
-可自由用于个人学习、研究、试验、教育或非营利科研活动等非商业用途；
+可自由用于个人学习、研究、试验、教育或非营利科研活动等非商业用途；闭源商业用途需获取授权。
 
-如有疑问或合作意向，可联系: davidyang042@gmail.com
+如有疑问或合作意向、获取多租户商业版本，可联系: davidyang042@gmail.com
 
 
 
@@ -564,10 +564,10 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
 
 
 <div align="center">
-<a href="中文链接">
+<a href="https://www.volcengine.com/activity/ai618?utm_campaign=hw&utm_content=hw&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">
     <img src="./assets/huoshan.png" alt="火山引擎" width="150"/ >
     <p>感谢<strong>火山引擎 </strong>赞助了本项目<br>
-      方舟 Agent Plan 限时2.5折订阅，<a href="https://www.volcengine.com/activity/ai618?utm_campaign=hw&utm_content=hw&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">点击链接抢购</a></p>
+      </p>
 </a>
 </div>
 
@@ -604,17 +604,13 @@ Python 3.10+ + Flask 3.0 + uv + SQLite
  
 ## 📈 项目统计
 
-<a href="https://www.star-history.com/#Anionex/banana-slides&type=Timeline&legend=top-left">
-
+<a href="https://www.star-history.com/?type=timeline&legend=top-left&repos=Anionex%2Fbanana-slides">
  <picture>
-
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Anionex/banana-slides&type=Timeline&theme=dark&legend=top-left" />
-
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Anionex/banana-slides&type=Timeline&legend=top-left" />
-
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Anionex/banana-slides&type=Timeline&legend=top-left" />
-
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Anionex/banana-slides&type=timeline&theme=dark&legend=top-left&sealed_token=pzS0bBi13dr1t_I0Dwnl1DVcQSdm3cX-52VniVUNQzg-ZWc6KLgzf_c-kfUYgEbGbpIw37AZbrkimxRYTzoiBCKkszqr7i07YYdStd03_JlKnzQ42jG8Vg" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Anionex/banana-slides&type=timeline&legend=top-left&sealed_token=pzS0bBi13dr1t_I0Dwnl1DVcQSdm3cX-52VniVUNQzg-ZWc6KLgzf_c-kfUYgEbGbpIw37AZbrkimxRYTzoiBCKkszqr7i07YYdStd03_JlKnzQ42jG8Vg" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Anionex/banana-slides&type=timeline&legend=top-left&sealed_token=pzS0bBi13dr1t_I0Dwnl1DVcQSdm3cX-52VniVUNQzg-ZWc6KLgzf_c-kfUYgEbGbpIw37AZbrkimxRYTzoiBCKkszqr7i07YYdStd03_JlKnzQ42jG8Vg" />
  </picture>
+</a>
 
 </a>
 
