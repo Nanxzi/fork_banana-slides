@@ -57,16 +57,16 @@
 
 <table>
 <tr>
-<td width="220" align="center" valign="middle"><a href="https://aihubmix.com/?aff=17EC"><img src="./assets/logo_aihubmix.png" alt="AIHubMix" height="48"></a></td>
+<td width="220" align="center" valign="middle"><a href="https://aihubmix.com/?aff=17EC"><img src="./assets/logo_aihubmix.png" alt="AIHubMix" width="189"></a></td>
 <td valign="middle">Thanks to <a href="https://aihubmix.com/?aff=17EC">AIHubMix</a> for sponsoring this project! AIHubMix is a stable, high-concurrency AI model API gateway that connects Claude, GPT, Gemini, DeepSeek, and other mainstream models through a single API key, compatible with multiple protocols, with <b>free model options</b> available. To sign up, use the <a href="https://aihubmix.com/?aff=17EC">AIHubMix entry</a> outside mainland China or the <a href="https://inferera.com/?aff=17EC">Inferera entry</a> within mainland China.</td>
 </tr>
 <tr>
-<td width="220" align="center" valign="middle"><a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides"><img src="./assets/byteplus.png" alt="BytePlus ModelArk" height="48"></a></td>
-<td valign="middle">Thanks to <a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">BytePlus ModelArk</a> for sponsoring this project! It is a cost-effective alternative to major model APIs with comparable generation quality. The subscription can also be used for everyday work and other compatible tools—not only Banana Slides.<br><a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">View plans and subscribe →</a></td>
+<td width="220" align="center" valign="middle"><a href="https://go.apimart.ai/gh-banana-slides"><img src="./assets/logo_apimart.png" alt="APIMart" width="189"></a></td>
+<td valign="middle">Thanks to <a href="https://go.apimart.ai/gh-banana-slides">APIMart</a> for sponsoring this project! APIMart is a low-cost API platform for AI image &amp; video generation — GPT-Image-2 from $0.006/image, 160+ images per dollar. One async API covers both image and video: submit a task, get an ID, fetch results via polling or callback. Batch tens of thousands of images without timeouts, switch models without changing code. Pay-as-you-go with no monthly fee — <a href="https://go.apimart.ai/gh-banana-slides">sign up here</a> to get started.</td>
 </tr>
 <tr>
-<td width="220" align="center" valign="middle"><a href="https://go.apimart.ai/gh-banana-slides"><img src="./assets/logo_apimart.png" alt="APIMart" height="48"></a></td>
-<td valign="middle">Thanks to <a href="https://go.apimart.ai/gh-banana-slides">APIMart</a> for sponsoring this project! APIMart is a low-cost API platform for AI image &amp; video generation — GPT-Image-2 from $0.006/image, 160+ images per dollar. One async API covers both image and video: submit a task, get an ID, fetch results via polling or callback. Batch tens of thousands of images without timeouts, switch models without changing code. Pay-as-you-go with no monthly fee — <a href="https://go.apimart.ai/gh-banana-slides">sign up here</a> to get started.</td>
+<td width="220" align="center" valign="middle"><a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides"><img src="./assets/byteplus.png" alt="BytePlus ModelArk" width="189"></a></td>
+<td valign="middle">Thanks to <a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">BytePlus ModelArk</a> for sponsoring this project! It is a cost-effective alternative to major model APIs with comparable generation quality. The subscription can also be used for everyday work and other compatible tools—not only Banana Slides.<br><a href="https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides">View plans and subscribe →</a></td>
 </tr>
 </table>
 
@@ -88,16 +88,6 @@
 - **[2026-04-23]**: Added support for the gpt-image-2 model. Meanwhile, the export effect of editable backgrounds has been improved due to model capability upgrades (select Generative Acquisition in Settings - Export Options - Background Acquisition)
 - **[2026-04-11]**: Added support for [CLI operations and integrated agent skills](https://docs.bananaslides.online/cli)
 - **[2026-03]**: Added several features and optimizations, such as extra fields, multi-aspect ratio settings, etc.
-- **[2026-02-09]**: New Features and Optimizations
-  * New Features
-    * Supports pasting images directly into the homepage, outline, and description cards for instant recognition, providing a better interactive experience.
-    * Manual outline section editing: Supports manually adjusting the section (part) to which a page belongs.
-    * Docker multi-architecture: Images now support amd64 / arm64 builds.
-    * Internationalization + Dark Mode: Added Chinese/English switching; supports light/dark/system-matching themes; dark mode compatibility for all components.
-  * Bug Fixes & UX Optimizations
-    * Fixed export-related 500 errors, reference file association timing, outline/page data misalignment, task polling for incorrect projects, infinite polling in description generation, memory leaks in image preview, and handling of partial failures in batch deletion.
-    * Optimized formatting example tips, HTTP error message copy, modal closing experience, cleaned up localStorage for old projects, and removed redundant prompts for first-time project creation.
-    * Several other optimizations and fixes.
 
 ## ✨ Project Origin
 
@@ -260,10 +250,6 @@ cp .env.example .env
 ```
 
 **(Optional, can also be configured in the user interface after startup, [click here for the tutorial](https://ziy68cvfvu3.feishu.cn/wiki/GiNawdmpiinSRqkGspocqEWAnkh?from=from_copylink ))** Edit the `.env` file to configure the required environment variables:
-
-> **Recommended: Volcengine Agent Plan**<br>
-> A more cost-effective alternative to major overseas model APIs with comparable generation quality. The subscription can be used for Banana Slides, everyday work, and other compatible tools.<br>
-> [View plans and subscribe →](https://www.byteplus.com/en/product/modelark?utm_campaign=hw&utm_content=banana-slides&utm_medium=devrel_tool_web&utm_source=OWO&utm_term=banana-slides)
 
 <details>
 <summary>Click to expand details</summary>
