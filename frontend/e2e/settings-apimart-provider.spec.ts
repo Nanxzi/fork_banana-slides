@@ -35,6 +35,12 @@ const settingsData = {
 test.describe('Settings APIMart provider pill', () => {
   test.use({ locale: 'zh-CN' });
 
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/access-code/check', route =>
+      route.fulfill({ json: { success: true, data: { enabled: false } } })
+    );
+  });
+
   test('fills APIMart defaults while saving through the OpenAI-compatible provider', async ({ page }) => {
     let savedPayload: Record<string, unknown> | undefined;
     await page.route(url => url.pathname === '/api/settings', async route => {
@@ -61,8 +67,8 @@ test.describe('Settings APIMart provider pill', () => {
     await expect(apimartPill).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByText('如何获取 APIMart API Key')).toBeVisible();
     await expect(page.getByRole('link', { name: '打开 APIMart →' }))
-      .toHaveAttribute('href', 'https://go.apimart.ai/gh-banana-slides');
-    await expect(apimartPill).toContainText('仅需 $0.006/张');
+      .toHaveAttribute('href', 'https://apimart.ai/');
+    await expect(apimartPill).toHaveText('APIMart');
 
     const modelProviderOptions = page.locator('select').filter({ has: page.locator('option[value=""]') });
     await expect(modelProviderOptions.first().locator('option[value="apimart"]')).toHaveCount(0);
@@ -71,7 +77,7 @@ test.describe('Settings APIMart provider pill', () => {
     await expect(apiSection.locator('input').first()).toHaveValue(APIMART_BASE_URL);
     const modelInputs = page.locator('input[placeholder^="留空使用环境变量配置"]');
     await expect(modelInputs.nth(0)).toHaveValue('gpt-5.6-sol');
-    await expect(modelInputs.nth(1)).toHaveValue('gpt-image-2');
+    await expect(modelInputs.nth(1)).toHaveValue('gpt-image-2.5-flare');
     await expect(modelInputs.nth(2)).toHaveValue('gpt-5.6-luna');
 
     await page.getByTestId('global-provider-pills').locator('[data-provider="openai"]').click();
@@ -83,7 +89,7 @@ test.describe('Settings APIMart provider pill', () => {
     expect(savedPayload?.ai_provider_format).toBe('openai');
     expect(savedPayload?.api_base_url).toBe(APIMART_BASE_URL);
     expect(savedPayload?.text_model).toBe('gpt-5.6-sol');
-    expect(savedPayload?.image_model).toBe('gpt-image-2');
+    expect(savedPayload?.image_model).toBe('gpt-image-2.5-flare');
     expect(savedPayload?.image_caption_model).toBe('gpt-5.6-luna');
     expect(savedPayload?.openai_image_api_protocol).toBe('images');
   });
