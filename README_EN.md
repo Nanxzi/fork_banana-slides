@@ -41,11 +41,11 @@
 </div>
 
 <p>
-  <a href="https://github.com/Anionex/banana-slides/stargazers#gh-light-mode-only"><img src="./assets/readme/icon-star-light.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/stars/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Stars&amp;labelColor=ffffff&amp;color=ffffff" alt="GitHub Stars" width="91" height="26"></a><a href="https://github.com/Anionex/banana-slides/stargazers#gh-dark-mode-only"><img src="./assets/readme/icon-star-dark.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/stars/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Stars&amp;labelColor=0d1117&amp;color=0d1117" alt="GitHub Stars" width="91" height="26"></a>
+  <a href="https://github.com/Anionex/banana-slides/stargazers#gh-light-mode-only"><img src="./assets/readme/icon-star-light.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-star-light.svg" alt="GitHub Stars" width="91" height="26"></a><a href="https://github.com/Anionex/banana-slides/stargazers#gh-dark-mode-only"><img src="./assets/readme/icon-star-dark.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-star-dark.svg" alt="GitHub Stars" width="91" height="26"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/Anionex/banana-slides/forks#gh-light-mode-only"><img src="./assets/readme/icon-fork-light.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/forks/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Forks&amp;labelColor=ffffff&amp;color=ffffff" alt="GitHub Forks" width="96" height="26"></a><a href="https://github.com/Anionex/banana-slides/forks#gh-dark-mode-only"><img src="./assets/readme/icon-fork-dark.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/forks/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Forks&amp;labelColor=0d1117&amp;color=0d1117" alt="GitHub Forks" width="96" height="26"></a>
+  <a href="https://github.com/Anionex/banana-slides/forks#gh-light-mode-only"><img src="./assets/readme/icon-fork-light.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-fork-light.svg" alt="GitHub Forks" width="96" height="26"></a><a href="https://github.com/Anionex/banana-slides/forks#gh-dark-mode-only"><img src="./assets/readme/icon-fork-dark.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-fork-dark.svg" alt="GitHub Forks" width="96" height="26"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/Anionex/banana-slides/watchers#gh-light-mode-only"><img src="./assets/readme/icon-eye-light.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/watchers/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Watchers&amp;labelColor=ffffff&amp;color=ffffff" alt="GitHub Watchers" width="109" height="26"></a><a href="https://github.com/Anionex/banana-slides/watchers#gh-dark-mode-only"><img src="./assets/readme/icon-eye-dark.svg" alt="" width="24" height="32"><img src="https://img.shields.io/github/watchers/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=Watchers&amp;labelColor=0d1117&amp;color=0d1117" alt="GitHub Watchers" width="109" height="26"></a>
+  <a href="https://github.com/Anionex/banana-slides/watchers#gh-light-mode-only"><img src="./assets/readme/icon-eye-light.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-eye-light.svg" alt="GitHub Watchers" width="109" height="26"></a><a href="https://github.com/Anionex/banana-slides/watchers#gh-dark-mode-only"><img src="./assets/readme/icon-eye-dark.svg" alt="" width="24" height="32"><img src="./assets/readme/metric-eye-dark.svg" alt="GitHub Watchers" width="109" height="26"></a>
 </p>
 
 <p>
@@ -57,7 +57,7 @@
 <p>
   <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-light-mode-only"><img src="./assets/readme/version-light.svg" alt="v0.9.0-rc.7" width="106" height="22"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-dark-mode-only"><img src="./assets/readme/version-dark.svg" alt="v0.9.0-rc.7" width="106" height="22"></a>
   &nbsp;
-  <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-light-mode-only"><img src="./assets/readme/icon-license-light.svg" alt="" width="20" height="27"><img src="https://img.shields.io/github/license/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=&amp;labelColor=ffffff&amp;color=ffffff" alt="AGPL-3.0" width="78" height="22"></a><a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-dark-mode-only"><img src="./assets/readme/icon-license-dark.svg" alt="" width="20" height="27"><img src="https://img.shields.io/github/license/Anionex/banana-slides?style=flat-square&amp;cacheSeconds=300&amp;label=&amp;labelColor=0d1117&amp;color=0d1117" alt="AGPL-3.0" width="78" height="22"></a>
+  <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-light-mode-only"><img src="./assets/readme/icon-license-light.svg" alt="" width="20" height="27"><img src="./assets/readme/license-light.svg" alt="AGPL-3.0" width="78" height="22"></a><a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-dark-mode-only"><img src="./assets/readme/icon-license-dark.svg" alt="" width="20" height="27"><img src="./assets/readme/license-dark.svg" alt="AGPL-3.0" width="78" height="22"></a>
   &nbsp;
   <a href="./assets/readme/docker-light.svg#gh-light-mode-only"><img src="./assets/readme/docker-light.svg" alt="Docker Build" width="109" height="22"></a><a href="./assets/readme/docker-dark.svg#gh-dark-mode-only"><img src="./assets/readme/docker-dark.svg" alt="Docker Build" width="109" height="22"></a>
   &nbsp;
@@ -585,16 +585,17 @@ Open your browser to access and use the application.
 <!-- i18n:community -->
 ## Communication Groups
 
-<a name="community#gh-light-mode-only"></a><a name="community#gh-dark-mode-only"></a>
+<a name="community#gh-light-mode-only"> </a> <a name="community#gh-dark-mode-only"> </a>
 
-<a name="community"></a>
+<a name="community"> </a>
 
-<p align="right"><a href="#user-content-readme-top">↑ Back to the top</a></p>
+<p align="right"> <a href="#user-content-readme-top"> ↑ Back to the top </a> </p>
 
 Feel free to suggest new features or provide feedback in the group!
 
 
-<img width="369" height="471" alt="image" src="https://github.com/user-attachments/assets/633db07a-e4e7-4511-a6c4-c9f196ef4a6c" />
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/d50b6165-5b70-4d0d-bb3c-1798c1a6015a" />
+
 
 
 
@@ -603,7 +604,7 @@ Feel free to suggest new features or provide feedback in the group!
 Feel free to follow the author on social media, where I will share updates about this project and information regarding AI:
 
 <p>
-  <a href="https://x.com/anion_ex"><img src="https://img.shields.io/badge/X-@anion__ex-000000?style=flat-square&logo=x&logoColor=white" alt="X (Twitter)"></a>
+  <a href="https://x.com/anion_ex"> <img src="https://img.shields.io/badge/X-@anion__ex-000000?style=flat-square&logo=x&logoColor=white" alt="X (Twitter)"> </a>
 </p>
 
 <!-- i18n:faq -->
