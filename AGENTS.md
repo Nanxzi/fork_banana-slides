@@ -7,7 +7,7 @@
 - Docker E2E 在环境测试重建容器后，须让宿主 runner 可写 `uploads`、`backend/instance` 及 SQLite 文件，并验证实际写事务；PPTX 下载须在点击前监听 Page 的 `download`，保存文件验收，不能用接口 200 代替。
 - nightly 的官方 PyPI 配置须在测试和发布两个 job 中通过 `scripts/prepare_nightly_lock.py` 同步锁文件 URL；`uv sync --frozen` 不会用索引环境变量覆盖锁定的下载地址，不能通过重新解析或升级依赖规避镜像 403。
 
-- README 翻译以 `docs/i18n/readme-state.json` 的成功同步快照为基线；保留 `i18n` 章节 ID，译文与状态一起提交。不可用干净 CI 工作区的 `git diff HEAD` 判断增量，也不可用中英文标题文字匹配章节。维护说明见 `docs/readme-i18n.md`。
+- README 翻译以 `docs/i18n/readme-state.json` 的成功同步快照为基线；保留 `i18n` 章节 ID，译文与状态一起提交。不可用干净 CI 工作区的 `git diff HEAD` 判断增量，也不可用中英文标题文字匹配章节。维护说明见 `docs/readme-i18n.md`。桌面发版须同时核对五种语言的下载入口和「最新动态」首条记录。「最新动态」只写用户可感知的新功能和关键修复，省略构建、测试和验收过程。
 
 - 同一项目的素材工具箱会从多个入口同时挂载；任务列表和轮询必须按项目共享，验收跨入口提交、关闭其中一个入口及重新挂载，避免覆盖任务或重复轮询。
 
@@ -19,3 +19,5 @@
 - 官网前端使用 `npm run build:online`（启用 `VITE_PUBLIC_LANDING=true`）；验收实际发布产物和公网根路径的 landing 标题及 Demo 跳转，不能只检查 HTTP 200。
 
 - 下架赞助商须移除所有品牌入口、提供商预设、注册链接和获取密钥引导，并按新访客及已有配置验收；不能只删除广告卡片。保留底层兼容不得变成继续展示或引流。
+
+- Windows 打包的 FFmpeg/FFprobe 须固定到持久可下载的产物并校验哈希；更换下载来源要验证空缓存打包，不能依赖上游会清理的每日构建。

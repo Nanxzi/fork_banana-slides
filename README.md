@@ -26,7 +26,7 @@
   &nbsp;
   <a href="https://docs.bananaslides.online/#gh-light-mode-only"><img src="./assets/buttons/docs-zh.svg" alt="文档" width="94" height="38"></a><a href="https://docs.bananaslides.online/#gh-dark-mode-only"><img src="./assets/buttons/docs-zh-dark.svg" alt="文档" width="94" height="38"></a>
   &nbsp;
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-light-mode-only"><img src="./assets/buttons/desktop-zh.svg" alt="桌面版 RC7" width="132" height="38"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-dark-mode-only"><img src="./assets/buttons/desktop-zh-dark.svg" alt="桌面版 RC7" width="132" height="38"></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-light-mode-only"><img src="./assets/buttons/desktop-zh.svg" alt="桌面版 RC8" width="132" height="38"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-dark-mode-only"><img src="./assets/buttons/desktop-zh-dark.svg" alt="桌面版 RC8" width="132" height="38"></a>
   &nbsp;
   <a href="https://github.com/Anionex/banana-slides#user-content--%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95#gh-light-mode-only"><img src="./assets/buttons/deploy-zh.svg" alt="部署方法" width="116" height="38"></a><a href="https://github.com/Anionex/banana-slides#user-content--%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95#gh-dark-mode-only"><img src="./assets/buttons/deploy-zh-dark.svg" alt="部署方法" width="116" height="38"></a>
 </p>
@@ -56,7 +56,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-light-mode-only"><img src="./assets/readme/version-light.svg" alt="v0.9.0-rc.7" width="106" height="22"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-dark-mode-only"><img src="./assets/readme/version-dark.svg" alt="v0.9.0-rc.7" width="106" height="22"></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-light-mode-only"><img src="./assets/readme/version-light.svg" alt="v0.9.0-rc.8" width="106" height="22"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-dark-mode-only"><img src="./assets/readme/version-dark.svg" alt="v0.9.0-rc.8" width="106" height="22"></a>
   &nbsp;
   <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-light-mode-only"><img src="./assets/readme/icon-license-light.svg" alt="" width="20" height="27"><img src="./assets/readme/license-light.svg" alt="AGPL-3.0" width="78" height="22"></a><a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-dark-mode-only"><img src="./assets/readme/icon-license-dark.svg" alt="" width="20" height="27"><img src="./assets/readme/license-dark.svg" alt="AGPL-3.0" width="78" height="22"></a>
   &nbsp;
@@ -110,6 +110,7 @@
 <details open>
 <summary>点击折叠</summary>
 
+- **[2026-11-16]** [0.9.0 RC8 发布](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8)。可编辑 PPTX 新增「仅文字可编辑」模式，导出中断后可以接着做。首页可用「日常汇报」制作周报和项目汇报，素材工具箱可以同时生成多张配图。修复了导出失败后进度仍停在 88%、网页下载被弹窗拦截，以及刚上传的模板选了却用不上的问题。
 - **[2026-09-05]**：0.9.0 候选版本 7 发布，修复 Codex（OpenAI OAuth）已连接但生图返回 400 的问题：内部调用主模型从 `gpt-5.4` 更新为 `gpt-5.6-terra`，图片模型仍保留 `gpt-image-2`，无需把图片模型改成文本模型。此版本还包含 RC6 之后的内容驱动风格描述与 SenseNova U1 生图支持；[查看下载与安装说明](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7)
 - **[2026-08-30]**：0.9.0 候选版本 6 发布，新增可开关的桌面启动更新检查、包含更新摘要与完整日志链接的更新卡片，以及下载进度、失败重试和重启安装；同时修复 APIMart OpenAI-compatible 异步图片任务、非流式请求及 1K/2K/4K 分辨率传递；[查看下载与安装说明](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.6)
 - **[2026-08-29]**：0.9.0 候选版本 5 发布，新增沉浸式在线幻灯片播放器与 APIMart OpenAI-compatible Provider 预设，桌面版更新检查现可正确跟随 RC 通道；同时改进 PPT 改造的 MinerU 凭据错误提示、修复参考文档远程图片 SSRF 风险，并让图片编辑默认进入框选状态；[查看下载与安装说明](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.5)
@@ -596,10 +597,7 @@ npm run dev
 
 欢迎在群中提出新功能建议或反馈～
 
-
-<img width="312" alt="image" src="https://github.com/user-attachments/assets/4bebb367-771d-4b0a-a574-719364c4dc09" />
-
-
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/28210fdb-a72e-47f6-8e9c-6fb721928732" />
 
 
 
@@ -687,9 +685,9 @@ npm run dev
 
 <p><a href="README.md">简体中文</a> · <a href="README_EN.md">English</a> · <a href="README_PT-BR.md">Português</a> · <a href="README_JA.md">日本語</a> · <a href="README_KO.md">한국어</a></p>
 
-<p><a href="https://bananaslides.online/">在线 Demo</a> · <a href="https://docs.bananaslides.online/">文档</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7">桌面版 RC7</a> · <a href="https://github.com/Anionex/banana-slides#-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">部署方法</a> · <a href="https://x.com/anion_ex">anion_ex</a> · <a href="#user-content-community">微信群</a></p>
+<p><a href="https://bananaslides.online/">在线 Demo</a> · <a href="https://docs.bananaslides.online/">文档</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8">桌面版 RC8</a> · <a href="https://github.com/Anionex/banana-slides#-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">部署方法</a> · <a href="https://x.com/anion_ex">anion_ex</a> · <a href="#user-content-community">微信群</a></p>
 
-<p><a href="https://github.com/Anionex/banana-slides/stargazers">Stars</a> · <a href="https://github.com/Anionex/banana-slides/forks">Forks</a> · <a href="https://github.com/Anionex/banana-slides/watchers">Watchers</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7">v0.9.0-rc.7</a> · <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://deepwiki.com/Anionex/banana-slides">Ask DeepWiki</a> · <a href="https://trendshift.io/repositories/22056">Trendshift</a> · <a href="https://hellogithub.com/repository/Anionex/banana-slides">HelloGitHub</a></p>
+<p><a href="https://github.com/Anionex/banana-slides/stargazers">Stars</a> · <a href="https://github.com/Anionex/banana-slides/forks">Forks</a> · <a href="https://github.com/Anionex/banana-slides/watchers">Watchers</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8">v0.9.0-rc.8</a> · <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://deepwiki.com/Anionex/banana-slides">Ask DeepWiki</a> · <a href="https://trendshift.io/repositories/22056">Trendshift</a> · <a href="https://hellogithub.com/repository/Anionex/banana-slides">HelloGitHub</a></p>
 
 <br>
 

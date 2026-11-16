@@ -25,7 +25,7 @@
   &nbsp;
   <a href="https://docs.bananaslides.online/#gh-light-mode-only"><img src="./assets/buttons/docs-en.svg" alt="Documentation" width="154" height="38"></a><a href="https://docs.bananaslides.online/#gh-dark-mode-only"><img src="./assets/buttons/docs-en-dark.svg" alt="Documentation" width="154" height="38"></a>
   &nbsp;
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-light-mode-only"><img src="./assets/buttons/desktop-en.svg" alt="Desktop RC7" width="140" height="38"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-dark-mode-only"><img src="./assets/buttons/desktop-en-dark.svg" alt="Desktop RC7" width="140" height="38"></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-light-mode-only"><img src="./assets/buttons/desktop-en.svg" alt="Desktop RC8" width="140" height="38"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-dark-mode-only"><img src="./assets/buttons/desktop-en-dark.svg" alt="Desktop RC8" width="140" height="38"></a>
   &nbsp;
   <a href="https://github.com/Anionex/banana-slides#user-content--%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95#gh-light-mode-only"><img src="./assets/buttons/deploy-en.svg" alt="Deployment" width="132" height="38"></a><a href="https://github.com/Anionex/banana-slides#user-content--%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95#gh-dark-mode-only"><img src="./assets/buttons/deploy-en-dark.svg" alt="Deployment" width="132" height="38"></a>
 </p>
@@ -55,7 +55,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-light-mode-only"><img src="./assets/readme/version-light.svg" alt="v0.9.0-rc.7" width="106" height="22"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7#gh-dark-mode-only"><img src="./assets/readme/version-dark.svg" alt="v0.9.0-rc.7" width="106" height="22"></a>
+  <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-light-mode-only"><img src="./assets/readme/version-light.svg" alt="v0.9.0-rc.8" width="106" height="22"></a><a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8#gh-dark-mode-only"><img src="./assets/readme/version-dark.svg" alt="v0.9.0-rc.8" width="106" height="22"></a>
   &nbsp;
   <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-light-mode-only"><img src="./assets/readme/icon-license-light.svg" alt="" width="20" height="27"><img src="./assets/readme/license-light.svg" alt="AGPL-3.0" width="78" height="22"></a><a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE#gh-dark-mode-only"><img src="./assets/readme/icon-license-dark.svg" alt="" width="20" height="27"><img src="./assets/readme/license-dark.svg" alt="AGPL-3.0" width="78" height="22"></a>
   &nbsp;
@@ -109,6 +109,7 @@
 <details open>
 <summary>Click to collapse</summary>
 
+- **[2026-11-16]** [0.9.0 RC8 is out](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8). Editable PPTX exports now offer a text-only editing mode and can resume after an interruption. Use the new report form for weekly reports and project updates, and generate several illustrations at once in the material toolbox. Fixes cover exports that still showed 88% after failing, web downloads blocked by pop-up settings, and newly uploaded templates that could be selected but not applied.
 - **[2026-09-05]**: 0.9.0 Release Candidate 7 is out, fixing an issue where Codex (OpenAI OAuth) would return a 400 error during image generation despite being connected: The internal main model has been updated from `gpt-5.4` to `gpt-5.6-terra`, while the image model remains `gpt-image-2` (no need to change the image model to a text model). This version also includes content-driven style descriptions and SenseNova U1 image generation support introduced since RC6; [View download and installation instructions](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7)
 - **[2026-08-30]**: 0.9.0 Release Candidate 6 is out, adding a toggleable desktop update checker, update cards with summaries and full changelog links, as well as download progress, failure retries, and restart-to-install functionality. It also fixes APIMart OpenAI-compatible asynchronous image tasks, non-streaming requests, and 1K/2K/4K resolution passing; [View download and installation instructions](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.6)
 - **[2026-08-29]**: 0.9.0 Release Candidate 5 is out, adding an immersive online slide player and APIMart OpenAI-compatible Provider presets. The desktop update checker now correctly follows the RC channel. Improved MinerU credential error prompts for PPT reconstruction, fixed SSRF risks for remote images in reference documents, and set image editing to default to marquee selection mode; [View download and installation instructions](https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.5)
@@ -123,7 +124,7 @@
 - **[2026-04-25]**: Asset Toolbox launched — adds three new modes: full-image editing, marquee editing (overlay/replace), and smart erasure to the existing asset generation features, providing a unified entry point for one-stop operations.
 - **[2026-04-25]**: Added support for account binding via official OpenAI OAuth. Once bound, Codex can be used directly as a text/image generation provider without manually entering an API Key. Plus accounts can generate 100+ 2K images every five hours ([Tutorial](https://ziy68cvfvu3.feishu.cn/wiki/LDSOwPzkhiNonkkNTF1ct2VBnNc)) (Based on official OpenAI OAuth PKCE authorization flow, not reverse engineered).
 - **[2026-04-25]**: Added support for saving custom text style description templates, which can be named, color-coded, and reused persistently without re-entering them every time.
-- **[2026-04-23]**: Added support for the `gpt-image-2` model. Meanwhile, editable background export effects have been improved due to model capability upgrades (Select "Generative Fetch" in Settings - Export Options - Background Fetching).
+- **[2026-04-23]**: Added support for the gpt-image-2 model. Meanwhile, editable background export effects have been improved due to model capability upgrades (Select "Generative Fetch" in Settings - Export Options - Background Fetching).
 - **[2026-04-11]**: Added support for [CLI operations and integrated Agent Skills](https://docs.bananaslides.online/cli).
 </details>
 
@@ -593,10 +594,7 @@ Open your browser to access and use the application.
 
 Feel free to suggest new features or provide feedback in the group!
 
-
-<img width="312" alt="image" src="https://github.com/user-attachments/assets/4bebb367-771d-4b0a-a574-719364c4dc09" />
-
-
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/28210fdb-a72e-47f6-8e9c-6fb721928732" />
 
 
 
@@ -676,9 +674,9 @@ Thanks to the following friends for their generous sponsorship and support of th
 
 <p><a href="README.md">简体中文</a> · <a href="README_EN.md">English</a> · <a href="README_PT-BR.md">Português</a> · <a href="README_JA.md">日本語</a> · <a href="README_KO.md">한국어</a></p>
 
-<p><a href="https://bananaslides.online/">Online Demo</a> · <a href="https://docs.bananaslides.online/">Documentation</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7">Desktop RC7</a> · <a href="https://github.com/Anionex/banana-slides#-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">Deployment</a> · <a href="https://x.com/anion_ex">anion_ex</a> · <a href="#user-content-community">WeChat Group</a></p>
+<p><a href="https://bananaslides.online/">Online Demo</a> · <a href="https://docs.bananaslides.online/">Documentation</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8">Desktop RC8</a> · <a href="https://github.com/Anionex/banana-slides#-%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">Deployment</a> · <a href="https://x.com/anion_ex">anion_ex</a> · <a href="#user-content-community">WeChat Group</a></p>
 
-<p><a href="https://github.com/Anionex/banana-slides/stargazers">Stars</a> · <a href="https://github.com/Anionex/banana-slides/forks">Forks</a> · <a href="https://github.com/Anionex/banana-slides/watchers">Watchers</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.7">v0.9.0-rc.7</a> · <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://deepwiki.com/Anionex/banana-slides">Ask DeepWiki</a> · <a href="https://trendshift.io/repositories/22056">Trendshift</a> · <a href="https://hellogithub.com/repository/Anionex/banana-slides">HelloGitHub</a></p>
+<p><a href="https://github.com/Anionex/banana-slides/stargazers">Stars</a> · <a href="https://github.com/Anionex/banana-slides/forks">Forks</a> · <a href="https://github.com/Anionex/banana-slides/watchers">Watchers</a> · <a href="https://github.com/Anionex/banana-slides/releases/tag/v0.9.0-rc.8">v0.9.0-rc.8</a> · <a href="https://github.com/Anionex/banana-slides/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://deepwiki.com/Anionex/banana-slides">Ask DeepWiki</a> · <a href="https://trendshift.io/repositories/22056">Trendshift</a> · <a href="https://hellogithub.com/repository/Anionex/banana-slides">HelloGitHub</a></p>
 
 <br>
 
